@@ -84,6 +84,8 @@ type Options struct {
 	FollowSitemap bool
 	// ExtractJS 是否对 .js / .css 及内联脚本做 endpoint 提取。
 	ExtractJS bool
+	// JSEngine 选择 JS 提取引擎，见 JSEngine 常量。零值等价于 JSEngineRegex。
+	JSEngine JSEngine
 	// ExtractFromStyle 是否从 style 属性与 <style> 块中提取 url()。
 	ExtractFromStyle bool
 	// Insecure 跳过 TLS 证书校验。
@@ -124,6 +126,7 @@ func DefaultOptions() *Options {
 		FollowRobots:       true,
 		FollowSitemap:      true,
 		ExtractJS:          true,
+		JSEngine:           JSEngineRegex,
 		ExtractFromStyle:   true,
 		Retries:            1,
 		MaxRedirects:       5,
@@ -183,5 +186,6 @@ func (o *Options) extractorOptions() extractor.Options {
 	return extractor.Options{
 		ExtractJS:    o.ExtractJS,
 		ExtractStyle: o.ExtractFromStyle,
+		JSExtract:    adaptEngine(engineFunc(o.JSEngine)),
 	}
 }

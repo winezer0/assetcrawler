@@ -37,8 +37,43 @@ var (
 // jsNoiseRe 过滤明显不是接口路径的字符串。
 var jsNoiseRe = regexp.MustCompile(`(?i)^(/|//|/\*|\*/)$|[%$]\{|\$\{|%s|%d|\{\{`)
 
-// FromJS 从脚本或样式内容中提取 URL 候选原始字符串。
-func FromJS(content string) []Request {
+// FromJS 从脚本或样式内容中提取 URL 候选。
+//
+// 若注入了 JSExtract（AST 引擎），先取其结果，再叠加正则结果：
+// AST 擅长还原拼接与调用点语义，正则擅长兜住 AST 解析失败或漏掉的字面量，
+// 两者合并后由下游 frontier 统一去重。
+func FromJS(content string, o Options) []Request {
+	if o.JSExtract != nil {
+		if reqs, ok := o.JSExtract(content); ok {
+			return reqs
+		}
+	}
+	return fromJSRegex(content)
+}
+
+// FromCSS 从样式表内容中提取 url(...)。
+//
+// CSS 必须单独处理：把 `.css` 送进 JS 解析器必然失败，回退正则后又只能捞到
+// 带引号的字符串，真正的 url() 因为落在静态资源过滤里全部丢弃。
+func FromCSS(content string) []Request {
+	var out []Request
+	seen := make(map[string]struct{}, 16)
+	for _, m := range cssURLRe.FindAllStringSubmatch(content, -1) {
+		raw := strings.TrimSpace(m[1])
+		if raw == "" || strings.HasPrefix(raw, "data:") {
+			continue
+		}
+		if _, dup := seen[raw]; dup {
+			continue
+		}
+		seen[raw] = struct{}{}
+		out = append(out, Request{Raw: raw, Method: http.MethodGet, Source: "css"})
+	}
+	return out
+}
+
+// fromJSRegex 是零依赖的正则实现，作为 AST 引擎未启用或解析失败时的兜底。
+func fromJSRegex(content string) []Request {
 	if content == "" {
 		return nil
 	}

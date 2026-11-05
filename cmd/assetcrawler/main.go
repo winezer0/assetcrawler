@@ -55,6 +55,7 @@ func main() {
 		noRobots  = flag.Bool("no-robots", false, "do not read robots.txt")
 		noSitemap = flag.Bool("no-sitemap", false, "do not read sitemap.xml")
 		noJS      = flag.Bool("no-js", false, "disable JS/CSS endpoint extraction")
+		jsEngine  = flag.String("js-engine", "regex", "JS extraction engine: regex | goja | treesitter")
 		silent    = flag.Bool("silent", false, "only print URLs, no summary")
 		verbose   = flag.Bool("v", false, "print errors to stderr")
 		ua        = flag.String("ua", "", "custom User-Agent")
@@ -86,6 +87,7 @@ func main() {
 	opts.FollowRobots = !*noRobots
 	opts.FollowSitemap = !*noSitemap
 	opts.ExtractJS = !*noJS
+	opts.JSEngine = assetcrawler.JSEngine(*jsEngine)
 	opts.KnownFiles = known
 	if *ua != "" {
 		opts.UserAgent = *ua

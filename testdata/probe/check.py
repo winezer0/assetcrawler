@@ -41,6 +41,8 @@ def main():
     ap.add_argument("--bin", default=os.path.join(ROOT, "assetcrawler.exe"),
                     help="资产采集器路径")
     ap.add_argument("--verbose", action="store_true")
+    ap.add_argument("--js-engine", default=None,
+                    help="传给采集器的 -js-engine（regex | goja | treesitter）")
     args = ap.parse_args()
 
     if not os.path.exists(args.bin):
@@ -53,20 +55,30 @@ def main():
         if not wait_ready():
             sys.exit("桩服务启动失败（端口 18080 可能被占用）")
 
-        subprocess.run([args.bin, "-u", TARGET, "-d", "3", "-jsonl",
-                        "-o", out_file, "-silent"],
-                       check=True, capture_output=True)
+        cmd = [args.bin, "-u", TARGET, "-d", "3", "-jsonl", "-o", out_file, "-silent"]
+        if args.js_engine:
+            cmd += ["-js-engine", args.js_engine]
+        subprocess.run(cmd, check=True, capture_output=True)
 
         rows = [json.loads(l) for l in open(out_file, encoding="utf-8") if l.strip()]
         got = {r["url"].replace(TARGET.rstrip("/"), ""): r for r in rows}
+
+        def variants(path):
+            """路径的等价值：本身、以及带 query 的所有变体。"""
+            return [v for v in got if v == path or v.startswith(path + "?")]
+
+        def first_of(path):
+            for v in variants(path):
+                return got[v]
+            return None
         exp = json.load(open(os.path.join(HERE, "expected.json"), encoding="utf-8"))
 
         # 1) 载体覆盖
         cases = exp["cases"]
-        hit = [c for c in cases if c["url"] in got]
+        hit = [c for c in cases if variants(c["url"])]
         print(f"[载体]   {len(hit)}/{len(cases)}")
         for c in cases:
-            present = c["url"] in got
+            present = bool(variants(c["url"]))
             if present != c["implemented"]:
                 print(f"         ! 记录与实际不符: {c['url']} 实际={present}")
             elif args.verbose or not present:
@@ -76,7 +88,7 @@ def main():
         mc = exp.get("method_cases", [])
         mok, mbad = 0, []
         for c in mc:
-            r = got.get(c["url"])
+            r = first_of(c["url"])
             actual = (r or {}).get("method", "-")
             if actual == c["method"]:
                 mok += 1
@@ -90,13 +102,21 @@ def main():
         pc = exp.get("param_cases", [])
         pok, pbad = 0, []
         for c in pc:
-            r = got.get(c["url"])
-            if r is None:
+            # 参数可能落在任一 URL 变体上，取覆盖最全的那个
+            best_missing = c["params"]
+            found_any = False
+            for v in variants(c["url"]):
+                found_any = True
+                r = got[v]
+                have = set(r.get("params") or [])
+                query = v.split("?", 1)[1] if "?" in v else ""
+                miss = [p for p in c["params"] if p not in have and f"{p}=" not in query]
+                if len(miss) < len(best_missing):
+                    best_missing = miss
+            if not found_any:
                 pbad.append(f"         ✗ {c['url']:<24} 未抓到该 URL")
                 continue
-            have = set(r.get("params") or [])
-            query = r["url"].split("?", 1)[1] if "?" in r["url"] else ""
-            missing = [p for p in c["params"] if p not in have and f"{p}=" not in query]
+            missing = best_missing
             if missing:
                 pbad.append(f"         ✗ {c['url']:<24} 缺参数 {missing}")
             else:

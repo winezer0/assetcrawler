@@ -26,6 +26,8 @@ type Request struct {
 	Source    string // 来源分类：标签名 / header:xxx / js / style 等
 	Attribute string
 	Tag       string
+	// Confidence 为空表示地址可确定；"template" 表示含 EXPR 占位符，不可直接访问。
+	Confidence string
 }
 
 // Options 控制提取的深度。默认只做安全的部分。
@@ -34,6 +36,11 @@ type Options struct {
 	ExtractJS bool
 	// ExtractStyle 是否从 style 属性与 <style> 块中提取 url()。
 	ExtractStyle bool
+	// JSExtract 可选：注入的 AST 级 JS 提取器（由上层按引擎选择装配）。
+	// 第二个返回值为 true 表示解析成功——此时不再叠加正则，
+	// 否则会把 AST 已经合并好的结果重新拆成碎片。
+	// 为 nil 时只用正则，extractor 因此保持零第三方依赖。
+	JSExtract func(src string) ([]Request, bool)
 }
 
 // DefaultOptions 返回推荐配置。
@@ -271,7 +278,7 @@ func FromHTML(doc *html.Node, o Options) []Request {
 				}
 			}
 			if sb.Len() > 0 {
-				out = append(out, FromJS(sb.String())...)
+				out = append(out, FromJS(sb.String(), o)...)
 			}
 		}
 	})

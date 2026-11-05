@@ -235,8 +235,12 @@ func (c *Crawler) extractAll(res *fetcher.Response) ([]extractor.Request, *url.U
 				base = bu
 			}
 		}
+	case extractor.LooksLikeCSS(res.ContentType, res.URL.Path):
+		if c.opts.ExtractFromStyle {
+			out = append(out, extractor.FromCSS(string(res.Body))...)
+		}
 	case c.opts.ExtractJS && extractor.LooksLikeJS(res.ContentType, res.URL.Path):
-		out = append(out, extractor.FromJS(string(res.Body))...)
+		out = append(out, extractor.FromJS(string(res.Body), c.opts.extractorOptions())...)
 	}
 
 	return out, base

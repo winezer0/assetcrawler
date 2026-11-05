@@ -180,7 +180,7 @@ func TestFromJS(t *testing.T) {
 		fetch(` + "`/api/tpl/${x}`" + `);   // 模板变量，应被过滤
 		//# sourceMappingURL=app.js.map
 	`
-	list := raws(FromJS(js))
+	list := raws(FromJS(js, DefaultOptions()))
 
 	for _, want := range []string{
 		"/api/user/info",
@@ -264,8 +264,17 @@ func TestLooksLikeJS(t *testing.T) {
 	if !LooksLikeJS("", "/static/app.js") {
 		t.Error(".js path should match")
 	}
-	if !LooksLikeJS("", "/static/a.css") {
-		t.Error(".css path should match")
+	if LooksLikeJS("", "/static/a.css") {
+		t.Error(".css should be handled by LooksLikeCSS, not LooksLikeJS")
+	}
+	if !LooksLikeCSS("text/css", "/x") {
+		t.Error("text/css content-type should be CSS")
+	}
+	if !LooksLikeCSS("", "/static/a.css") {
+		t.Error(".css path should be CSS")
+	}
+	if LooksLikeCSS("text/html", "/page") {
+		t.Error("html page should not be CSS")
 	}
 	if LooksLikeJS("text/html", "/page") {
 		t.Error("html page should not match")

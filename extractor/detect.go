@@ -26,14 +26,22 @@ func LooksLikeHTML(contentType string, body []byte) bool {
 	return strings.Contains(s, "<html") || strings.Contains(s, "<!doctype html")
 }
 
+// LooksLikeCSS 判断响应是否为样式表。CSS 需要专用解析，不能走 JS 分支。
+func LooksLikeCSS(contentType, path string) bool {
+	if strings.Contains(strings.ToLower(contentType), "text/css") {
+		return true
+	}
+	return strings.HasSuffix(strings.ToLower(path), ".css")
+}
+
 // LooksLikeJS 判断响应是否应按脚本/样式内容做 endpoint 提取。
 func LooksLikeJS(contentType, path string) bool {
 	ct := strings.ToLower(contentType)
-	if strings.Contains(ct, "javascript") || strings.Contains(ct, "ecmascript") || strings.Contains(ct, "text/css") {
+	if strings.Contains(ct, "javascript") || strings.Contains(ct, "ecmascript") {
 		return true
 	}
 	p := strings.ToLower(path)
-	return strings.HasSuffix(p, ".js") || strings.HasSuffix(p, ".mjs") || strings.HasSuffix(p, ".css")
+	return strings.HasSuffix(p, ".js") || strings.HasSuffix(p, ".mjs")
 }
 
 // staticAssetRe 识别「大概率不是接口」的静态资源。
