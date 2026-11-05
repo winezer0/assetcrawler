@@ -58,6 +58,9 @@ type Result struct {
 	StatusCode  int    `json:"status,omitempty"`
 	ContentType string `json:"content_type,omitempty"`
 	Referer     string `json:"referer,omitempty"`
+	// Confidence 为空表示地址可直接访问；"template" 表示含 EXPR 占位符，
+	// 这类结果只作为「接口形状」输出，不入队抓取（抓了必然 404）。
+	Confidence string `json:"confidence,omitempty"`
 }
 
 // Options 控制采集行为。请用 DefaultOptions() 起步，再按需覆盖字段。

@@ -70,8 +70,9 @@ func (e *extractor) collectConsts(root *gotreesitter.Node) {
 		if name == nil || value == nil || name.Type(e.lang) != "identifier" {
 			return
 		}
-		if s, ok := e.literal(value); ok {
-			e.vars[name.Text(e.src)] = s
+		// 用部分求值而非只认字面量：`var u = c + "/orders"` 同样可静态确定。
+		if v, certain := e.eval(value); certain && v != "" {
+			e.vars[name.Text(e.src)] = v
 		}
 	})
 }
@@ -254,6 +255,14 @@ func (e *extractor) methodOf(obj, name string, args []*gotreesitter.Node) string
 			return m
 		}
 	}
+
+	// 压缩后对象名不可信（axios -> n）：属性名是动词且首参像地址时才判定，
+	// 避免把 store.get("token") 这类普通读取误判成请求。
+	if m, ok := httpVerbs[lower]; ok && len(args) > 0 {
+		if raw, _ := e.eval(args[0]); urlLike(raw) {
+			return m
+		}
+	}
 	switch lower {
 	case "fetch":
 		if len(args) >= 2 {
@@ -385,12 +394,29 @@ func (e *extractor) literal(n *gotreesitter.Node) (string, bool) {
 		}
 		return "", false
 	case "template_string":
+		// 无插值时直接返回字面量；有插值时逐段拼接，
+		// 能求值的插值代入，未知的记 EXPR —— 与 `+` 拼接的处理保持一致。
+		var sb strings.Builder
+		certain := true
 		for i := 0; i < n.ChildCount(); i++ {
-			if n.Child(i).Type(e.lang) == "template_substitution" {
-				return "", false
+			c := n.Child(i)
+			switch c.Type(e.lang) {
+			case "string_fragment":
+				sb.WriteString(c.Text(e.src))
+			case "template_substitution":
+				var inner *gotreesitter.Node
+				for _, ch := range namedChildren(c) {
+					inner = ch
+					break
+				}
+				v, ok := e.eval(inner)
+				if !ok {
+					certain = false
+				}
+				sb.WriteString(v)
 			}
 		}
-		return strings.Trim(n.Text(e.src), "`"), true
+		return sb.String(), certain
 	}
 	return "", false
 }

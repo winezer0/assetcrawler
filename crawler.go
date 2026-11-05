@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"net/url"
+	"strings"
 	"sync"
 
 	"golang.org/x/net/html"
@@ -250,8 +251,30 @@ func (c *Crawler) extractAll(res *fetcher.Response) ([]extractor.Request, *url.U
 func (c *Crawler) toTasks(reqs []extractor.Request, base *url.URL, depth int, referer string) []task {
 	var next []task
 	for _, r := range reqs {
+		// 模板必须能锚定到站点根或绝对地址才有意义。
+		// webpack 的 `"chunk-" + e + "." + map[e] + ".js"` 这类片段
+		// 解析出来是 `/static/js/chunk-EXPR.EXPR.js`，纯属噪音。
+		if r.Confidence == "template" &&
+			!strings.HasPrefix(r.Raw, "/") && !strings.HasPrefix(r.Raw, "http") {
+			continue
+		}
 		u, ok := c.frontier.Push(r.Raw, base)
 		if !ok {
+			continue
+		}
+		// 含占位符的模板只作为「接口形状」输出，不入队：
+		// /api/v3/orders/EXPR 这类地址请求必然 404，抓它纯属浪费配额。
+		if r.Confidence == "template" {
+			c.emit(Result{
+				URL:        u.String(),
+				Method:     r.Method,
+				Source:     r.Source,
+				Attribute:  r.Attribute,
+				Tag:        r.Tag,
+				Depth:      depth,
+				Referer:    referer,
+				Confidence: "template",
+			})
 			continue
 		}
 		next = append(next, task{

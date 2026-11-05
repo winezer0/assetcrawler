@@ -75,14 +75,15 @@ func (e *extractor) collectConsts(root ast.Node) {
 		}
 		for _, b := range vs.List {
 			id, ok := b.Target.(*ast.Identifier)
-			if !ok {
+			if !ok || b.Initializer == nil {
 				continue
 			}
-			lit, ok := b.Initializer.(*ast.StringLiteral)
-			if !ok {
-				continue
+			// 不只看纯字面量：`var u = c + "/orders"` 也是可静态确定的，
+			// webpack 压缩后的产物里这种派生常量非常常见。
+			// 因为按源码顺序遍历，被引用的常量此时已经入表。
+			if v, certain := e.eval(b.Initializer); certain && v != "" {
+				e.vars[id.Name.String()] = v
 			}
-			e.vars[id.Name.String()] = lit.Value.String()
 		}
 	})
 }
@@ -234,6 +235,15 @@ func (e *extractor) methodOf(obj, name string, args []ast.Expression) string {
 		}
 	}
 
+	// 压缩后的调用点：webpack/terser 会把 axios 压成 n，对象名不再可信。
+	// 此时退化为「属性名是 HTTP 动词 + 首参确实像地址」才判定，
+	// 避免把 store.get("token") 这类普通读取误判成请求。
+	if m, ok := httpVerbs[lower]; ok && len(args) > 0 {
+		if raw, _ := e.eval(args[0]); urlLike(raw) {
+			return m
+		}
+	}
+
 	switch lower {
 	case "fetch":
 		if len(args) >= 2 {
@@ -344,6 +354,24 @@ func (e *extractor) eval(n ast.Expression) (string, bool) {
 			r, rok := e.eval(v.Right)
 			return l + r, lok && rok
 		}
+	case *ast.TemplateLiteral:
+		// ``${base}/orders/${id}``：Vue 3 / Vite / 现代 axios 里极常见。
+		// Elements 比 Expressions 多一个（首尾各一个纯文本段），逐段拼。
+		var sb strings.Builder
+		certain := true
+		for i, el := range v.Elements {
+			if el != nil {
+				sb.WriteString(el.Literal)
+			}
+			if i < len(v.Expressions) {
+				v2, ok := e.eval(v.Expressions[i])
+				if !ok {
+					certain = false
+				}
+				sb.WriteString(v2)
+			}
+		}
+		return sb.String(), certain
 	}
 	return "EXPR", false
 }
