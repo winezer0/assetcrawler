@@ -89,6 +89,25 @@ ESM 那条是硬限制：解析前要把 `import`/`export` 语句剥掉（约 10
 **注意**：只从 `goja` 取 `parser`/`ast`/`token` 三个子包，**不引入它的 VM**。
 goja 本体是一个能执行 JS 的引擎，但本方案只用它做语法解析，不执行任何代码。
 
+**候选方案对比（均为 `CGO_ENABLED=0` 实测，2026-11-06）**：
+
+| 方案 | 二进制增量 | 50KB 解析 | 500KB 解析 | 1MB 解析 | ESM 语法 | 集成成本 |
+|---|---|---|---|---|---|---|
+| **`dop251/goja`** | **+0.34MB** | **1.3ms** | **10.5ms** | **19.5ms** | ❌ 不支持 | `go get`，+1 依赖 |
+| `odvcencio/gotreesitter` | +3.6MB | 112ms | **6.0s** | — | ✅ 支持 | `go get`，+1 依赖 |
+| `evanw/esbuild`（vendored） | 未测 | 未测 | 未测 | — | ✅ 支持 | 拷 12 个 internal 包、约 2.2MB 源码 |
+
+- **gotreesitter 淘汰**：纯 Go 的 tree-sitter 运行时，语法覆盖完美（含 ESM、动态 import 全过），
+  但解析耗时随文件增大**超线性退化**：1KB/1.2ms → 10KB/9ms → 50KB/112ms → 100KB/370ms → 500KB/6.0s，
+  吞吐仅 0.1–1.3 MB/s，比 goja 慢 **最多 570 倍**。前端 bundle 动辄几百 KB，这个开销不可接受。
+- **esbuild 不必要**：它的内部 parser 确实是最快的，但要 vendored `js_parser`/`js_ast`/`js_lexer`/
+  `compat`/`config`/`logger`/`ast`/`helpers`/`sourcemap`/`runtime`/`cache`/`xxhash` 共 12 个包、
+  约 2.2MB 源码，且 esbuild 明确声明 `internal/` 无兼容保证，升级需重新拷贝。
+  而 goja 已是 50 MB/s——解析 1MB 只要 20ms，而下载 1MB 通常 200ms 以上，
+  解析只占端到端耗时的 10% 以内，**再快也没有意义**。
+- 结论：选 goja，ESM 缺口用预处理剥掉 `import`/`export` 语句解决（约 10 行），
+  代价远小于引入第二套解析器。
+
 **收益**：方法正确率 0/3 → 3/3；同时消除 4 条碎片、产出参数名。
 
 ### P0-2 表单参数合成（成本最低，收益明确）
