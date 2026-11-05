@@ -26,10 +26,34 @@
 对 `BinaryExpression(+)` 做部分求值，未知节点记为 `EXPR`；再做一遍 `var X = "literal"`
 的常量传播。解析失败时回退现有正则。
 
-**已验证可行**：原型在 `out/jsext_prototype.go`（工作区），零 CGO、只多 1 个依赖，
-实测能把上面两个例子分别还原成 `/api/debug/config` 与 `/v2/orders`，
-且**比 jsluice 更准**（jsluice 不做常量传播，只能给出 `/users/`）。成本：中。
-代价：`extractor` 不再是零第三方依赖——这条需要你点头。
+**已验证可行**：原型见 `testdata/probe/jsext_prototype.go`（`go run` 可独立运行）。
+零 CGO、只多 1 个依赖（`dop251/goja`），对下面这段代码
+
+```javascript
+var API  = "/api/v1";
+var mode = "debug";
+fetch(API + "/users/" + id);              // 变量拼接
+fetch("/api/" + mode + "/config");        // 常量传播
+document.location = "/login?redirect=" + redirect + "&method=oauth";
+```
+
+实测输出：
+
+```
+[待校验] /api/v1/users/EXPR              ← API 被传播，比 jsluice 的 "/users/" 更准
+[已确定] /api/debug/config               ← mode 是常量，完整还原为可访问路径
+[待校验] /login?redirect=EXPR&method=oauth
+```
+
+成本：中。**代价：`extractor` 不再是零第三方依赖，这条需要你点头。**
+
+实现上有两个坑（原型里已处理并注释）：
+
+1. **`full=true` 的结果不能丢。** 常量传播后原本含变量的拼接会变成完全确定的字面量，
+   这恰恰是精度最高的产出；早期版本因为「只输出含 EXPR 的结果」把它误过滤了。
+2. **嵌套的 `+` 会重复产出子串。** `a + b + c` 会同时得到 `a+b` 和 `a+b+c`，
+   必须按源码区间（`Idx0`/`Idx1`）只保留最外层，否则 `/api/debug` 会作为
+   `/api/debug/config` 的子集混进结果。
 
 **验收**：夹具里 `/api/debug/config`、`/v2/orders` 命中；`known_noise` 里 4 条碎片消失。
 
