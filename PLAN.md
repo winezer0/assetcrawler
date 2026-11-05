@@ -257,3 +257,44 @@ P0 全部完成后，夹具覆盖应从 7/19 提升到 15/19，方法正确率 3
 `treesitter` 保留作为对照实现，等确认无需对比后可从 `jsengine.go` 的
 `engineFunc` 中移除（保留 `jsext/treesitter` 目录不影响默认构建，
 但**必须同时删除 import**，否则二进制仍会带上 8MB 语法表）。
+
+---
+
+## 附：爬虫实战测试（2026-11-06）
+
+用 `testdata/spa_fixture.py` 搭了一个 SPA 风格桩站（Vue/React 项目常见形态）：
+`var BASE="/api/v2"` 拼接、`axios.get(url,{params:{...}})`、`axios.post`、
+`$.ajax({url,type,data})`、`XMLHttpRequest.open`、动态 `import()`、静态 `import`、
+sourceMappingURL 注释、外链 CSS。
+
+三个引擎各跑一遍（深度 3）：
+
+| 引擎 | 总数 | 有效 | 碎片 | 接口 | 带参 | 方法分布 |
+|---|---:|---:|---:|---:|---:|---|
+| regex | 19 | 12 | **7** | 3 | 0 | 全 GET |
+| goja | 17 | **17** | 0 | **8** | 1 | GET×14, POST×2, DELETE×1 |
+| treesitter | 17 | **17** | 0 | **8** | 1 | 同上 |
+
+**regex 的 19 条里 7 条是表达式碎片**（`/api/v2`、`/orders`、`/users`、`/session`、
+`/legacy/list`…），有效 URL 只有 12 条；AST 引擎 17 条全部有效。
+
+AST 独有的 5 条真实接口，regex 完全拿不到：
+
+```
+/api/v2/auth/session          ← fetch(R + "/session")，R 是常量
+/api/v2/legacy/list   POST    ← $.ajax({url: BASE+"/legacy/list", type:"POST"})
+/api/v2/orders        POST    ← axios.post(url, {sku,qty})
+/api/v2/orders/EXPR           ← fetch(BASE+"/orders/"+id)
+/api/v2/users?page=&limit=    ← axios.get(url,{params:{page,limit}})
+```
+
+方法识别：`XHR.open("DELETE", ...)` → DELETE、`$.ajax(type:"POST")` → POST、
+`axios.post` → POST，全部正确；regex 则一律 GET。
+
+### 本轮修掉的两个缺陷
+
+1. **静态 import 的模块路径丢失**。goja 走 ESM 预处理时会删掉 `import x from "y"` 整行，
+   而 `collectStaticImports` 拿到的又是删改后的源码（`src = fixed` 覆盖了原变量），
+   导致 `./dep.mjs` 丢失。改为保留 `orig` 再提取。
+2. **`$.ajax({url, type, data})` 的 URL 在对象字段里**，原先只取第一个实参，
+   所以这条要么拿不到、要么拿成 GET。补了配置对象分支，同时提取 `type` 与 `data`。

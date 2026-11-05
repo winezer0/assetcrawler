@@ -34,6 +34,10 @@ var httpClients = map[string]bool{
 
 // Extract 解析 JS 源码并返回请求候选。解析失败时返回 error，由调用方决定是否回退正则。
 func Extract(src []byte) ([]jsext.Request, error) {
+	// 保留原始源码：ESM 预处理会把 import 语句整行删掉，
+	// 而静态 import 的模块路径恰恰只能从原文里取。
+	orig := src
+
 	f, err := parser.ParseFile(nil, "", src, 0)
 	if err != nil {
 		// goja 的 parser 不支持 ESM 语法。剥离 import/export 后再试一次：
@@ -53,6 +57,7 @@ func Extract(src []byte) ([]jsext.Request, error) {
 	e.collectCalls(f)
 	e.collectBinaries(f)
 	e.collectComments(src)
+	e.collectStaticImports(orig)
 	return jsext.Dedup(e.out), nil
 }
 
@@ -100,6 +105,33 @@ func (e *extractor) fromCall(ce *ast.CallExpression) (jsext.Request, bool) {
 	args := ce.ArgumentList
 	if len(args) == 0 || name == "" {
 		return jsext.Request{}, false
+	}
+
+	// $.ajax({url:"...", type:"POST", data:{...}}) —— URL 与参数都在配置对象里
+	if len(args) == 1 {
+		if u := e.objField(args[0], "url"); u != nil {
+			raw, certain := e.eval(u)
+			if urlLike(raw) {
+				method := ""
+				for _, f := range []string{"type", "method"} {
+					if v := e.objField(args[0], f); v != nil {
+						if sv, ok := v.(*ast.StringLiteral); ok {
+							method = strings.ToUpper(sv.Value.String())
+							break
+						}
+					}
+				}
+				conf := jsext.Certain
+				if !certain {
+					conf = jsext.Template
+				}
+				return jsext.Request{
+					URL: raw, Method: method,
+					BodyParams: e.objKeys(e.objField(args[0], "data")),
+					Confidence: conf,
+				}, true
+			}
+		}
 	}
 
 	// 动态 import("./chunk.js")：预处理后可能被改成 __import(...)
@@ -364,6 +396,19 @@ func StripModuleSyntax(src []byte) ([]byte, bool) {
 		return src, false
 	}
 	return []byte(out), true
+}
+
+// staticImportRe 匹配 `import x from "y"` / `import "y"` 的模块路径。
+var staticImportRe = regexp.MustCompile(`(?m)^\s*import\s+(?:[^;'"\n]*?from\s*)?['"]([^'"\n]+)['"]`)
+
+// collectStaticImports 提取静态 import 的模块路径。
+// 这一步必须针对原始源码做——StripModuleSyntax 已经把这些语句整行删掉了。
+func (e *extractor) collectStaticImports(src []byte) {
+	for _, m := range staticImportRe.FindAllSubmatch(src, -1) {
+		if raw := string(m[1]); urlLike(raw) {
+			e.out = append(e.out, jsext.Request{URL: raw, Confidence: jsext.Certain})
+		}
+	}
 }
 
 // collectComments 提取注释里的 sourceMappingURL。

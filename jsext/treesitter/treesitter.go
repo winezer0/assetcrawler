@@ -48,6 +48,7 @@ func Extract(src []byte) ([]jsext.Request, error) {
 	e.collectCalls(root)
 	e.collectBinaries(root)
 	e.collectComments(root)
+	e.collectImports(root)
 	return jsext.Dedup(e.out), nil
 }
 
@@ -71,6 +72,22 @@ func (e *extractor) collectConsts(root *gotreesitter.Node) {
 		}
 		if s, ok := e.literal(value); ok {
 			e.vars[name.Text(e.src)] = s
+		}
+	})
+}
+
+// collectImports 提取静态 import 语句的模块路径（`import x from "./dep.mjs"`）。
+func (e *extractor) collectImports(root *gotreesitter.Node) {
+	e.walk(root, func(n *gotreesitter.Node) {
+		if n.Type(e.lang) != "import_statement" {
+			return
+		}
+		src := n.ChildByFieldName("source", e.lang)
+		if src == nil {
+			return
+		}
+		if v, ok := e.literal(src); ok && urlLike(v) {
+			e.out = append(e.out, jsext.Request{URL: v, Confidence: jsext.Certain})
 		}
 	})
 }
@@ -126,6 +143,33 @@ func (e *extractor) fromCall(n *gotreesitter.Node) (jsext.Request, bool) {
 		return jsext.Request{}, false
 	}
 	args := namedChildren(argsNode)
+
+	// $.ajax({url:"...", type:"POST", data:{...}}) —— URL 与参数都在配置对象里
+	if len(args) == 1 {
+		if u := e.objField(args[0], "url"); u != nil {
+			raw, certain := e.eval(u)
+			if urlLike(raw) {
+				method := ""
+				for _, f := range []string{"type", "method"} {
+					if v := e.objField(args[0], f); v != nil {
+						if sv, ok := e.literal(v); ok {
+							method = strings.ToUpper(sv)
+							break
+						}
+					}
+				}
+				conf := jsext.Certain
+				if !certain {
+					conf = jsext.Template
+				}
+				return jsext.Request{
+					URL: raw, Method: method,
+					BodyParams: e.objKeys(e.objField(args[0], "data")),
+					Confidence: conf,
+				}, true
+			}
+		}
+	}
 
 	// xhr.open("PUT", url)：URL 在第二个位置
 	urlIdx := 0
