@@ -1,0 +1,31 @@
+{
+  "description": "URL 载体覆盖度验收夹具。每个条目是一种『URL 可能出现的位置』，implemented 表示当前是否已覆盖。跑 server.py 后用资产采集器扫 127.0.0.1:18080，应命中的条目即为回归基线。",
+  "target": "http://127.0.0.1:18080/",
+  "cases": [
+    {"url": "/normal-link",              "via": "a[href]",                    "implemented": true},
+    {"url": "/css-inline/hero.jpg",      "via": "style 块 url()",              "implemented": true},
+    {"url": "/canonical-page",           "via": "link[rel=canonical][href]",   "implemented": true},
+    {"url": "/style.css",                "via": "link[href]",                  "implemented": true},
+    {"url": "/app.js",                   "via": "script[src]",                 "implemented": true},
+    {"url": "/app.js.map",               "via": "sourceMappingURL 注释",        "implemented": true},
+    {"url": "/chunk-login.js",           "via": "JS import(\"./x.js\")",        "implemented": true},
+    {"url": "/api/debug/config",         "via": "JS 字符串拼接（应求值）",       "implemented": false},
+    {"url": "/v2/orders",                "via": "JS 变量拼接（常量传播）",       "implemented": false},
+    {"url": "/shared/og-page",           "via": "meta[property=og:url]",       "implemented": false},
+    {"url": "/img/twitter-card.png",     "via": "meta[name=twitter:image]",    "implemented": false},
+    {"url": "/api/from-data-attr",       "via": "data-* 自定义属性",            "implemented": false},
+    {"url": "/csp-report-endpoint",      "via": "CSP 响应头 report-uri",        "implemented": false},
+    {"url": "https://api.internal.example.com", "via": "CSP connect-src",      "implemented": false},
+    {"url": "/css-file/bg.jpg",          "via": "CSS 文件内 url()",             "implemented": false},
+    {"url": "/fonts/inter.woff2",        "via": "CSS 文件内 @font-face",        "implemented": false},
+    {"url": "/api/page/2",               "via": "JSON 响应体的 next 字段",      "implemented": false},
+    {"url": "/api/items/1",              "via": "JSON 响应体的 links.self",     "implemented": false},
+    {"url": "/src/api/order.js",         "via": "sourcemap 的 sources 列表",    "implemented": false}
+  ],
+  "known_noise": [
+    {"url": "/api/",   "reason": "JS 拼接碎片，应被求值合并而非独立成条"},
+    {"url": "/config", "reason": "同上"},
+    {"url": "/v2",     "reason": "同上"},
+    {"url": "/orders", "reason": "同上"}
+  ]
+}
