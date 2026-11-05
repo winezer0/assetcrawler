@@ -1,164 +1,178 @@
-# 优化规划：提高 URL 召回率
+# 优化规划：召回 × 准确 × 参数 × 方法
 
-目标很明确：**在同样的目标上发现更多真实 URL**，而不是做更多功能。
-判定标准用「有效 URL 数」（200 且非碎片），不是「抓了多少条」。
+目标不是「抓更多条」，而是**抓到更多「能直接拿去测」的接口**。
+判定拆成四个可量化指标，避免用噪音充数。
 
-## 现状诊断（实测，非推测）
+## 四个指标
 
-用 `testdata/probe/` 构造的夹具扫 19 种 URL 载体，当前覆盖 7 种，缺 12 种。
-同一次探测共抓 14 条，其中 4 条是 JS 拼接碎片（`/api/`、`/config`、`/v2`、`/orders`），
-全部 404 —— 这些不是「多抓」，是噪音。
+| 指标 | 定义 | 当前问题 |
+|---|---|---|
+| **召回** | 有效 URL 数（200 且非碎片） | JS 拼接被拆成多条 404 碎片 |
+| **准确** | 不产生无效/占位 URL | 碎片全部 404；拼接产物无置信度标记 |
+| **参数** | 带 query 的 URL 数与参数名种类 | 只能捡 URL 里写死的参数，表单/JS 里的全丢 |
+| **方法** | 请求方法正确的接口数 | JS 调用的 method 全部退化成 GET |
 
-在真实站点（testasp 基线 44 条）上表现尚可，但那是个传统 ASP 站：
-页面结构简单、几乎没有 JS 拼装接口。**换成 SPA 或 API 驱动的站点，缺口会立刻放大。**
+## 现状实测（2026-11-06）
 
-## 优化清单
+### 方法：form 对，JS 全错
 
-按「预期新增有效 URL ÷ 实现成本」排序。
+| 来源 | 提取到的 URL | 当前 method | 应为 | 结论 |
+|---|---|---|---|---|
+| `form[method=get]` | `/search` | GET | GET | 正确 |
+| `form[method=post]` | `/login` | POST | POST | 正确 |
+| `$.get(...)` | `/api/list` | GET | GET | 正确（默认值碰巧对） |
+| `axios.post(...)` | `/api/users` | **GET** | POST | 错 |
+| `axios.delete(...)` | `/api/users/1` | **GET** | DELETE | 错 |
+| `fetch(url,{method:"PUT"})` | `/api/items` | **GET** | PUT | 错 |
 
-### P0-1 JS AST 部分求值（收益最大）
+`method` 字段在链路里是通的（form 能正确传出），问题只在**没有从 JS 调用点解析**。
 
-**问题**：现在是纯正则，`fetch("/api/" + mode + "/config")` 只能抽出 `/api/` 和 `/config`
-两条碎片，真实路径 `/api/debug/config` 完全丢失；`var BASE="/v2"; fetch(BASE+"/orders")`
-同理。既漏真资产，又制造 404 噪音。
+### 参数：只能捡写死的
 
-**改法**：`extractor` 增加 AST 分支，用 `dop251/goja` 的 parser 解析，
-对 `BinaryExpression(+)` 做部分求值，未知节点记为 `EXPR`；再做一遍 `var X = "literal"`
-的常量传播。解析失败时回退现有正则。
+同一批用例里，`q` / `page` / `sort` / `username` / `size` / `role` 全部丢失。
+原因是没有从两个地方取：
 
-**已验证可行**：原型见 `testdata/probe/jsext_prototype.go`（`go run` 可独立运行）。
-零 CGO、只多 1 个依赖（`dop251/goja`），对下面这段代码
+- `<form>` 内 `<input name>` / `<select name>` / `<textarea name>`
+- JS 调用的第二参数对象：`$.get("/api/list", {page:1,size:20})`、`axios.get(url,{params:{role:"admin"}})`
 
-```javascript
-var API  = "/api/v1";
-var mode = "debug";
-fetch(API + "/users/" + id);              // 变量拼接
-fetch("/api/" + mode + "/config");        // 常量传播
-document.location = "/login?redirect=" + redirect + "&method=oauth";
-```
+### 召回与准确：碎片
 
-实测输出：
+`fetch("/api/" + mode + "/config")` 被拆成 `/api/` 与 `/config` 两条独立结果，均 404。
 
-```
-[待校验] /api/v1/users/EXPR              ← API 被传播，比 jsluice 的 "/users/" 更准
-[已确定] /api/debug/config               ← mode 是常量，完整还原为可访问路径
-[待校验] /login?redirect=EXPR&method=oauth
-```
+### 真实站点基线（testasp）
 
-成本：中。**代价：`extractor` 不再是零第三方依赖，这条需要你点头。**
+44 条站内 URL，其中 36 条带参数（81%），但**只有 3 个参数名**（`RetURL`/`id`/`item`）。
+比例高是因为站点自己的链接写了参数，不代表推导能力——换个 SPA 就会归零。
 
-实现上有两个坑（原型里已处理并注释）：
+## 优化项
 
-1. **`full=true` 的结果不能丢。** 常量传播后原本含变量的拼接会变成完全确定的字面量，
-   这恰恰是精度最高的产出；早期版本因为「只输出含 EXPR 的结果」把它误过滤了。
-2. **嵌套的 `+` 会重复产出子串。** `a + b + c` 会同时得到 `a+b` 和 `a+b+c`，
-   必须按源码区间（`Idx0`/`Idx1`）只保留最外层，否则 `/api/debug` 会作为
-   `/api/debug/config` 的子集混进结果。
+### P0-1 JS 调用点语义识别（一石三鸟）
 
-**验收**：夹具里 `/api/debug/config`、`/v2/orders` 命中；`known_noise` 里 4 条碎片消失。
+**一次改造同时解决方法、参数、碎片三件事**，因为它们都需要同一份信息：
+调用点的 callee 与实参。
 
-### P0-2 JSON 响应解析（成本最低）
+要识别：
 
-**问题**：`/api/data` 已经抓到了，但响应体是 JSON，当前不解析，
-里面的 `next`、`links.self` 全部丢失。SPA 的分页和资源入口基本都在 JSON 里。
+| 模式 | 产出 |
+|---|---|
+| `fetch(url, {method:"POST", body:...})` | method + bodyParams |
+| `axios.post(url, data)` / `.delete(url)` | method |
+| `axios.get(url, {params:{a,b}})` | queryParams |
+| `$.get(url, {a,b})` / `$.post(url, {a,b})` | method + queryParams |
+| `xhr.open("PUT", url)` | method |
+| `navigator.sendBeacon(url, data)` | method=POST |
+| 字符串拼接 `A + "/x" + B` | 部分求值，还原完整路径 |
 
-**改法**：`extractor` 增加 `FromJSON()`，递归遍历 JSON 值，对字符串值套用与 JS 相同的
-过滤规则（排除静态资源、排除纯数字、长度限制）。识别依据是 `Content-Type: application/json`
-或 body 首字符为 `{`/`[`。
+**输出形态**：`{URL, Method, QueryParams, BodyParams, Confidence}`。
 
-**收益**：分页接口能滚出成倍的 URL，且几乎零误报。成本：低。
+**实现**：`dop251/goja` parser + AST，原型见 `testdata/probe/jsext_prototype.go`
+（已验证：零 CGO、能还原 `/api/debug/config`、处理了「常量传播结果不能丢」与
+「嵌套 + 只取最外层」两个坑）。解析失败回退现有正则。
 
-**验收**：夹具里 `/api/page/2`、`/api/items/1` 命中。
+**成本**：中（+1 依赖）。这是唯一需要外部依赖的项，需你确认。
 
-### P0-3 CSS 文件改为专用解析
+**收益**：方法正确率 0/3 → 3/3；同时消除 4 条碎片、产出参数名。
 
-**问题**：`.css` 文件现在被当成 JS 处理（`LookLikeJS` 对 `text/css` 返回 true），
-走的是 JS 正则，只偶然捞到带引号的 `.json`。真正的 `url()` 和 `@font-face`
-因为落在静态资源过滤里全部丢弃。
+### P0-2 表单参数合成（成本最低，收益明确）
 
-**改法**：`looksLikeCSS` 单独判断，复用已有的 `cssURLRe` 提取 `url(...)`，
-不受静态资源过滤影响（CSS 引用的本来就是静态资源，过滤等于全丢）。
+**问题**：`<form action="/search" method="get">` 现在只提取 `/search`，
+里面的 `q`、`page` 全丢。表单是**参数名最集中的来源**，一个后台登录页就能给出
+`username`/`password`/`captcha` 三个参数。
 
-**收益**：图片/字体路径 + 少量提示性接口。成本：很低（约 20 行）。
+**改法**：`extractor.FromHTML` 在遇到 `form` 时，向上收集其可见控件：
+`input[name]`、`select[name]`、`textarea[name]`（跳过 `type=submit|button|reset`）。
+GET 表单 → query 参数；POST 表单 → body 参数。产出 `/search?q=&page=`。
 
-**验收**：夹具里 `/css-file/bg.jpg`、`/fonts/inter.woff2` 命中。
+**成本**：低（纯 HTML 遍历，约 40 行）。**验收**：`q`/`page`/`username` 出现在参数里。
 
-### P1-1 响应头扩展：CSP 与 Report-To
+### P0-3 JSON 响应解析
 
-**问题**：`FromHeaders` 只认 `Location` / `Content-Location` / `Link` / `Refresh`。
-CSP 头里的 `connect-src`（后端 API 域名）、`report-uri`（上报端点）现在完全没看。
+**问题**：`/api/data` 抓到了但响应体不解析，`next`、`links.self` 全丢。
+SPA 的分页和资源入口基本都在 JSON 里。
 
-**改法**：解析 `Content-Security-Policy` / `Content-Security-Policy-Report-Only`
-的各指令域名与路径，以及 `Report-To` / `NEL` 的 JSON 端点。
+**改法**：新增 `FromJSON()`，递归遍历字符串值，套用与 JS 相同的过滤规则
+（排除静态资源、纯数字、超长串）。识别依据 `Content-Type: application/json`
+或 body 首字符 `{`/`[`。
 
-**收益**：内部域名和上报端点，安全视角价值高，且是「页面上看不见」的资产。成本：低。
+**成本**：低。**验收**：`/api/page/2`、`/api/items/1` 命中。
 
-**验收**：夹具里 `/csp-report-endpoint`、`https://api.internal.example.com` 命中。
+### P0-4 CSS 文件专用解析
 
-### P1-2 meta 标签泛化
+**问题**：`.css` 现在被当 JS 处理，真正的 `url()` 因为落在静态资源过滤里全丢。
 
-**问题**：`meta` 只处理 `http-equiv=refresh`。`og:url`、`og:image`、`twitter:image`
-这些社交卡片字段全丢——它们在分享型站点上大量存在。
+**改法**：独立 `looksLikeCSS` 分支，复用 `cssURLRe` 提取 `url(...)`，
+对 CSS 引用的资源不做静态资源过滤（过滤等于全丢）。
 
-**改法**：识别 `property` / `name` 为 `og:*`、`twitter:*`、`msapplication-*` 的
-`content`，以及 `link[rel=alternate|preconnect|dns-prefetch|manifest]`。
+**成本**：很低（约 20 行）。
 
-**成本**：低（扩一张属性表）。**验收**：夹具里 `/shared/og-page`、`/img/twitter-card.png` 命中。
+### P1-1 置信度建模（服务「准确」）
 
-### P1-3 sourcemap 解析
+**问题**：部分求值会产出 `/api/v1/users/EXPR` 这类含占位符的结果。
+它**不是可访问的 URL**，现在会入队抓取（必然 404，浪费请求），且混在结果里拉低准确率。
 
-**问题**：`.map` 文件已经抓到（`sourceMappingURL` 提取生效），但内容是 JSON 未解析，
-`sources` 里的源码路径全部丢失。
+**改法**：`Result` 增加 `Kind` 与 `Confidence`：
 
-**改法**：识别 `application/json` + 路径以 `.map` 结尾或含 `"version":3`，
-解析 `sources` / `sourceRoot`，还原成可访问路径。
+| Kind | 含义 | 是否入队抓取 |
+|---|---|---|
+| `page` | 可直接访问的页面 | 是 |
+| `asset` | 静态资源 | 是 |
+| `api` | 接口路径（完整） | 是 |
+| `template` | 含 EXPR 占位符，需人工替换 | **否**，仅输出 |
 
-**收益**：暴露前端组件与路由结构，有时能直接看到 `/src/views/admin/` 这类目录。成本：低。
+**默认行为**：`template` 不入队，避免无谓的 404。这同时提升了「准确」与速度。
 
-**验收**：夹具里 `/src/api/order.js` 命中。
+### P1-2 响应头扩展：CSP / Report-To
 
-### P2-1 data-* 属性泛化
+`Content-Security-Policy` 的 `connect-src`（后端 API 域名）、`report-uri`（上报端点）
+是「页面上看不见」的资产，安全视角价值高。**成本**：低。
 
-**问题**：只处理 `data-src` / `data-original`。Vue/React 项目常把接口写在
-`data-api-endpoint`、`data-url`、`data-href` 这类自定义属性上。
+### P1-3 meta 泛化
 
-**改法**：匹配所有 `data-*`，但值必须通过「像 URL」的判定（以 `/` 或 `http` 开头，
-或含 `.` 扩展名）才采纳，避免把开关标记当 URL。**误报风险中等，需实测调阈值。**
+`og:url`、`og:image`、`twitter:image`、`link[rel=alternate|preconnect|manifest]`
+全丢（现在只认 `http-equiv=refresh`）。**成本**：低。
 
-### P2-2 robots.txt 的 Disallow 可选抓取
+### P1-4 sourcemap 的 sources
 
-**现状**：Disallow 路径只作为线索输出（`status=0`），不实际访问。这是有意的合规选择。
-**改法**：加 `--respect-robots=false` 开关，由使用者在授权场景下显式开启。
+`.map` 已抓到但内容不解析，`sources` 里的源码路径全部丢失。**成本**：低。
 
-### P2-3 分页模式有限扩展
+### P2-1 URL 归一化增强（服务「准确」）
 
-**问题**：`?page=1` 只抓到第一页，后续页要靠 JSON 的 `next` 才有（依赖 P0-2）。
-**改法**：对已发现的 URL，若 query 含 `page`/`p`/`offset` 等常见分页参数，
-按上限（默认 5 页）做有限递增，并设总请求预算。
-**注意**：这不是目录 fuzz（已排除），只沿已存在的参数做分页推进，且必须可关闭。
+`?a=1&b=2` 与 `?b=2&a=1` 目前算两条。多数框架下等价，可排序后去重。
+**风险**：少数框架按顺序取值，需做成可关闭选项。
+
+### P2-2 data-\* 泛化
+
+`data-api-endpoint`、`data-url` 等，值必须通过「像 URL」判定才采纳。误报风险中等。
+
+### P2-3 分页参数有限推进
+
+对已发现的 `?page=1` 按上限（默认 5 页）递增，并设总请求预算。
+**注意**：这不是目录 fuzz（已排除），只沿已存在的参数推进，必须可关闭。
 
 ## 明确不做
 
-- 目录重组 fuzz / 猜路径（已排除）
-- 敏感信息提取（已排除）
-- 执行 JS 渲染 DOM（需要浏览器，与零依赖冲突）
+- 目录重组 fuzz / 猜路径
+- 敏感信息提取
+- 执行 JS 渲染 DOM
 
-## 验收方式
+## 验收
 
-任何改动都要同时过两道：
+每项改动都要过两道：
 
-1. **夹具**：`testdata/probe/server.py` 起服务，扫 19 个载体，`expected.json` 里
-   `implemented` 逐条转 true，`known_noise` 全部消失。
-2. **基线不回退**：`tools/baseline/testasp-2026-11-06` 的
-   `python tools/baseline.py diff` 不能出现「消失」。
+1. **夹具**：`testdata/probe/` 起服务后，`expected.json` 的 `implemented` 逐条转 true，
+   `known_noise` 全部消失；新增「方法正确」「参数提取」两组断言。
+2. **基线不回退**：`python tools/baseline.py diff` 无「消失」项。
 
-两道都过才算完成。只看新增数会把「用噪音换数字」的改动误判为进步。
+只看新增数会把「用噪音换数字」误判成进步，所以第一道必须包含「噪音消失」的断言。
 
-## 建议实施顺序
+## 实施顺序
 
-1. P0-2 JSON 解析 + P0-3 CSS 专用解析（成本最低，先把低垂果实摘掉）
-2. P0-1 JS AST（需要引入依赖，单独一个提交，便于回滚）
-3. P1-1 / P1-2 / P1-3（都是新增解析分支，互不冲突，可并行）
-4. P2 视实际目标站点类型再定——如果目标以传统站为主，P2 收益有限
+| 阶段 | 内容 | 依赖 | 风险 |
+|---|---|---|---|
+| 1 | P0-2 表单参数 + P0-4 CSS 解析 | 无 | 无，纯标准库 |
+| 2 | P0-1 JS 调用点语义识别 | 需引入 goja | 单独提交，便于回滚 |
+| 3 | P1-1 置信度建模 | 依赖 P0-1 产出模板 URL | 改 Result 结构，需同步基线脚本 |
+| 4 | P0-3 JSON + P1-2/3/4 | 无 | 各自独立 |
+| 5 | P2 视目标类型再定 | — | — |
 
-P0 三项做完，夹具覆盖应从 7/19 提到 12/19。
+P0 全部完成后，夹具覆盖应从 7/19 提升到 15/19，方法正确率 3/3，参数名可提取 7 个。

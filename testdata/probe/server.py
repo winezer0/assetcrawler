@@ -10,6 +10,14 @@ HTML = """<!DOCTYPE html><html><head>
 <a href="/normal-link">link</a>
 <script src="/app.js"></script>
 <div data-api-endpoint="/api/from-data-attr"></div>
+<form action="/search" method="get"><input name="q"><input name="page"><select name="sort"></select></form>
+<form action="/login" method="post"><input name="username"><input name="password"></form>
+<script>
+  $.get("/api/list", {page:1, size:20});
+  axios.post("/api/users", {role:"admin"});
+  axios.delete("/api/users/1");
+  fetch("/api/items", {method:"PUT"});
+</script>
 <script>var mode="debug"; fetch("/api/" + mode + "/config"); fetch("/api/data");</script>
 </body></html>"""
 
