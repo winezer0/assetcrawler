@@ -61,6 +61,8 @@ type Result struct {
 	// Confidence 为空表示地址可直接访问；"template" 表示含 EXPR 占位符，
 	// 这类结果只作为「接口形状」输出，不入队抓取（抓了必然 404）。
 	Confidence string `json:"confidence,omitempty"`
+	// Kind 标记资产类别："chunk"（打包分片）、"route"（前端路由），空为普通 URL。
+	Kind string `json:"kind,omitempty"`
 }
 
 // Options 控制采集行为。请用 DefaultOptions() 起步，再按需覆盖字段。
@@ -91,6 +93,11 @@ type Options struct {
 	JSEngine JSEngine
 	// ExtractFromStyle 是否从 style 属性与 <style> 块中提取 url()。
 	ExtractFromStyle bool
+	// ExtractChunkGraph 是否从打包产物里恢复懒加载 chunk 与前端路由表。
+	ExtractChunkGraph bool
+	// RouteExec 是否允许「执行 chunk」来兜底恢复路由。
+	// 默认关闭：它会运行目标站的代码，只在明确需要时开启。
+	RouteExec bool
 	// Insecure 跳过 TLS 证书校验。
 	Insecure bool
 	// Proxy 形如 http://127.0.0.1:8080 或 socks5://127.0.0.1:1080。空表示直连。
@@ -131,6 +138,8 @@ func DefaultOptions() *Options {
 		ExtractJS:          true,
 		JSEngine:           JSEngineRegex,
 		ExtractFromStyle:   true,
+		ExtractChunkGraph:  true,
+		RouteExec:          false,
 		Retries:            1,
 		MaxRedirects:       5,
 	}

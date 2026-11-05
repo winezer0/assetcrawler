@@ -56,6 +56,7 @@ func Extract(src []byte) ([]jsext.Request, error) {
 	e.collectConsts(f)
 	e.collectCalls(f)
 	e.collectBinaries(f)
+	e.collectLiterals(f)
 	e.collectComments(src)
 	e.collectStaticImports(orig)
 	return jsext.Dedup(e.out), nil
@@ -222,6 +223,88 @@ func (e *extractor) collectBinaries(root ast.Node) {
 		}
 		e.out = append(e.out, jsext.Request{URL: a.text, Confidence: conf})
 	}
+}
+
+// collectLiterals 收集「不是调用参数、也不是拼接」的独立字符串字面量。
+//
+// 之前的实现只看调用参数和 + 拼接，导致三类常见写法整体丢失：
+//   - a.href = "/dyn/page"        赋值给成员的字符串
+//   - {plain: "/api/in-js-file"}  对象属性值
+//   - ["/api/a", "/api/b"]        数组元素
+//
+// 只认「完全可确定」的字面量，且赋值只认成员赋值（a.x = ...），
+// 不认 `var base = "/api"` 这类通常作为前缀的常量，避免把 base 当成接口。
+func (e *extractor) collectLiterals(root ast.Node) {
+	emit := func(x ast.Expression) {
+		if x == nil {
+			return
+		}
+		v, certain := e.eval(x)
+		if !certain || !standaloneURL(v) {
+			return
+		}
+		e.out = append(e.out, jsext.Request{URL: v, Confidence: jsext.Certain})
+	}
+	walk(root, func(n any) {
+		switch v := n.(type) {
+		case *ast.AssignExpression:
+			// 只认「赋值给 URL 语义的成员」：a.href / f.src / cfg.url。
+			// 不加这层会把打包器的 o.p = "/static/js/"（publicPath）
+			// 当成一个地址，凭空多出一条 /static/js/ 的 404。
+			if !urlishMember(v.Left) {
+				return
+			}
+			emit(v.Right)
+		case *ast.ObjectLiteral:
+			for _, prop := range v.Value {
+				if kv, ok := prop.(*ast.PropertyKeyed); ok {
+					emit(kv.Value)
+				}
+			}
+		case *ast.ArrayLiteral:
+			for _, el := range v.Value {
+				emit(el)
+			}
+		}
+	})
+}
+
+// standaloneURL 是 collectLiterals 专用判定，比 urlLike 更严：
+// 必须能从站点根或绝对地址锚定。
+//
+// 放宽到 urlLike 会把路由配置里的相对子路由（path:"user/:id"）当成地址，
+// 解析后变成 /static/js/user/:id 这种不存在的路径。
+func standaloneURL(s string) bool {
+	if !urlLike(s) {
+		return false
+	}
+	for _, p := range []string{"/", "http://", "https://", "./", "../"} {
+		if strings.HasPrefix(s, p) {
+			return true
+		}
+	}
+	return false
+}
+
+// urlishMember 判断赋值左侧是否具有 URL 语义。
+func urlishMember(left ast.Expression) bool {
+	var name string
+	switch v := left.(type) {
+	case *ast.DotExpression:
+		name = v.Identifier.Name.String()
+	case *ast.BracketExpression:
+		if sl, ok := v.Member.(*ast.StringLiteral); ok {
+			name = sl.Value.String()
+		}
+	default:
+		return false
+	}
+	switch strings.ToLower(name) {
+	case "href", "src", "action", "url", "uri", "path", "pathname",
+		"location", "redirect", "endpoint", "link", "target", "data":
+		return true
+	}
+	return false
 }
 
 // methodOf 从调用点推断 HTTP 方法。

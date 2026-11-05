@@ -191,3 +191,96 @@ func TestScopeAlias(t *testing.T) {
 		t.Errorf("Scope String() = %q", ScopeSameHost.String())
 	}
 }
+
+// TestChunkGraphEndToEnd 验证打包产物的 chunk 与路由恢复能贯通到结果里。
+//
+// 场景还原真实情况：HTML 只有一个入口 bundle，懒加载 chunk 和前端路由
+// 都不在任何静态链接上，只能从 bundle 的运行时清单里读出来。
+func TestChunkGraphEndToEnd(t *testing.T) {
+	mux := http.NewServeMux()
+
+	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/html")
+		fmt.Fprint(w, `<html><body><div id="app"></div>
+			<script src="/static/js/app.js"></script></body></html>`)
+	})
+
+	bundle := `(function(){
+	  var o={}; o.p="/static/js/";
+	  o.u=function(e){return "chunk-"+e+"."+{101:"a1b2c3",102:"d4e5f6"}[e]+".js"};
+	  var routes=[
+	    {path:"/admin/reports",name:"reports",component:function(){return o.e(101)}},
+	    {path:"/settings/profile",name:"profile",component:function(){return o.e(102)}}
+	  ];
+	  window.__routes=routes;
+	})();`
+
+	mux.HandleFunc("/static/js/app.js", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/javascript")
+		fmt.Fprint(w, bundle)
+	})
+	mux.HandleFunc("/static/js/chunk-101.a1b2c3.js", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/javascript")
+		fmt.Fprint(w, `console.log("chunk 101");`)
+	})
+
+	srv := httptest.NewServer(mux)
+	defer srv.Close()
+
+	opts := DefaultOptions()
+	opts.MaxDepth = 2
+	opts.RateLimit = 0
+	opts.JSEngine = JSEngineGoja
+
+	c, err := New(opts)
+	if err != nil {
+		t.Fatalf("New: %v", err)
+	}
+	defer c.Close()
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+	defer cancel()
+	results, err := c.Crawl(ctx, srv.URL+"/")
+	if err != nil {
+		t.Fatalf("Crawl: %v", err)
+	}
+
+	byPath := map[string]Result{}
+	for _, r := range results {
+		byPath[r.URL] = r
+	}
+	base := srv.URL
+
+	// 懒加载 chunk 必须被发现并抓取
+	chunkURL := base + "/static/js/chunk-101.a1b2c3.js"
+	r, ok := byPath[chunkURL]
+	if !ok {
+		t.Fatalf("未发现 chunk，实际: %v", keysOfResult(byPath))
+	}
+	if r.Kind != "chunk" {
+		t.Errorf("chunk 的 kind = %q，期望 chunk", r.Kind)
+	}
+	if r.StatusCode != 200 {
+		t.Errorf("chunk 状态码 = %d，期望 200", r.StatusCode)
+	}
+
+	// 前端路由必须被识别并打标记
+	for _, want := range []string{"/admin/reports", "/settings/profile"} {
+		u := base + want
+		rr, ok := byPath[u]
+		if !ok {
+			t.Errorf("未发现路由 %s，实际: %v", want, keysOfResult(byPath))
+			continue
+		}
+		if rr.Kind != "route" {
+			t.Errorf("路由 %s 的 kind = %q，期望 route", want, rr.Kind)
+		}
+	}
+}
+
+func keysOfResult(m map[string]Result) []string {
+	out := make([]string, 0, len(m))
+	for k := range m {
+		out = append(out, k)
+	}
+	return out
+}

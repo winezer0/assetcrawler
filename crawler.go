@@ -14,6 +14,7 @@ import (
 	"assetcrawler/extractor"
 	"assetcrawler/fetcher"
 	"assetcrawler/frontier"
+	"assetcrawler/routegraph"
 )
 
 // Crawler 是采集引擎。零值不可用，请用 New 构造。
@@ -41,6 +42,7 @@ type task struct {
 	attribute string
 	tag       string
 	method    string
+	kind      string
 }
 
 // New 创建采集器。
@@ -241,10 +243,60 @@ func (c *Crawler) extractAll(res *fetcher.Response) ([]extractor.Request, *url.U
 			out = append(out, extractor.FromCSS(string(res.Body))...)
 		}
 	case c.opts.ExtractJS && extractor.LooksLikeJS(res.ContentType, res.URL.Path):
+		// 先跑带类型标记的 chunk/route 恢复，再跑通用 JS 提取。
+		// 顺序有讲究：两者可能产出同一 URL，frontier 的「先到先得」去重
+		// 会让后到的类型标记丢掉，所以带标记的必须排在前面。
+		out = append(out, c.extractRouteGraph(res.Body, res.URL.String())...)
 		out = append(out, extractor.FromJS(string(res.Body), c.opts.extractorOptions())...)
 	}
 
 	return out, base
+}
+
+// extractRouteGraph 从打包产物里恢复「静态链接看不见」的两类目标：
+// 懒加载 chunk 文件与前端路由表。
+//
+// chunk 直接入队（它们是真实文件）；route 也入队，但带 Kind=route 标记——
+// 前端路由在服务端往往只是同一个 index.html，调用方可据此过滤。
+func (c *Crawler) extractRouteGraph(body []byte, source string) []extractor.Request {
+	if !c.opts.ExtractChunkGraph || !routegraph.LooksLikeBundle(body) {
+		return nil
+	}
+	res := routegraph.Extract(body)
+
+	// 静态拿不到路由时，按需用执行兜底再试一次。
+	// 只对自注册的 webpack chunk 有效，ESM 产物会在里面直接失败。
+	if len(res.Routes) == 0 && c.opts.RouteExec && strings.Contains(string(body), "webpackChunk") {
+		execRes, err := routegraph.ExtractByExec(body, routegraph.ExecOptions{})
+		if err != nil {
+			c.emitError(source, err)
+		} else {
+			res.Routes = append(res.Routes, execRes.Routes...)
+			res.Chunks = append(res.Chunks, execRes.Chunks...)
+		}
+	}
+
+	out := make([]extractor.Request, 0, len(res.Chunks)+len(res.Routes))
+	for _, ch := range res.Chunks {
+		if ch.Path == "" {
+			continue // 执行兜底只给 id 不给文件名时无法入队
+		}
+		out = append(out, extractor.Request{
+			Raw:    ch.Path,
+			Method: "GET",
+			Source: "chunk:" + ch.Source,
+			Kind:   "chunk",
+		})
+	}
+	for _, rt := range res.Routes {
+		out = append(out, extractor.Request{
+			Raw:    rt.Path,
+			Method: "GET",
+			Source: "route:" + rt.Source,
+			Kind:   "route",
+		})
+	}
+	return out
 }
 
 // toTasks 把提取结果送入 frontier 归一化/去重，转换为下一层任务。
@@ -274,6 +326,7 @@ func (c *Crawler) toTasks(reqs []extractor.Request, base *url.URL, depth int, re
 				Depth:      depth,
 				Referer:    referer,
 				Confidence: "template",
+				Kind:       r.Kind,
 			})
 			continue
 		}
@@ -285,6 +338,7 @@ func (c *Crawler) toTasks(reqs []extractor.Request, base *url.URL, depth int, re
 			attribute: r.Attribute,
 			tag:       r.Tag,
 			method:    r.Method,
+			kind:      r.Kind,
 		})
 	}
 	return next
@@ -310,6 +364,7 @@ func (c *Crawler) resultOf(t task, res *fetcher.Response) Result {
 		StatusCode:  res.StatusCode,
 		ContentType: res.ContentType,
 		Referer:     t.referer,
+		Kind:        t.kind,
 	}
 }
 

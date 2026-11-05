@@ -28,6 +28,9 @@ type Request struct {
 	Tag       string
 	// Confidence 为空表示地址可确定；"template" 表示含 EXPR 占位符，不可直接访问。
 	Confidence string
+	// Kind 标记来源类别，目前用于区分 "chunk"（打包产物分片）与 "route"（前端路由）。
+	// 为空表示普通提取结果。
+	Kind string
 }
 
 // Options 控制提取的深度。默认只做安全的部分。

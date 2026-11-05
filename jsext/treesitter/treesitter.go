@@ -47,6 +47,7 @@ func Extract(src []byte) ([]jsext.Request, error) {
 	e.collectConsts(root)
 	e.collectCalls(root)
 	e.collectBinaries(root)
+	e.collectLiterals(root)
 	e.collectComments(root)
 	e.collectImports(root)
 	return jsext.Dedup(e.out), nil
@@ -419,6 +420,79 @@ func (e *extractor) literal(n *gotreesitter.Node) (string, bool) {
 		return sb.String(), certain
 	}
 	return "", false
+}
+
+// collectLiterals 收集独立字符串字面量（成员赋值 / 对象属性值 / 数组元素），
+// 与 goja 引擎保持同一套覆盖范围。
+func (e *extractor) collectLiterals(root *gotreesitter.Node) {
+	emit := func(n *gotreesitter.Node) {
+		if n == nil {
+			return
+		}
+		v, certain := e.eval(n)
+		if !certain || !standaloneURL(v) {
+			return
+		}
+		e.out = append(e.out, jsext.Request{URL: v, Confidence: jsext.Certain})
+	}
+	e.walk(root, func(n *gotreesitter.Node) {
+		switch n.Type(e.lang) {
+		case "assignment_expression":
+			left := n.ChildByFieldName("left", e.lang)
+			if left == nil {
+				return
+			}
+			switch left.Type(e.lang) {
+			case "member_expression", "subscript_expression":
+				if !urlishMemberNode(left, e.src, e.lang) {
+					return
+				}
+				emit(n.ChildByFieldName("right", e.lang))
+			}
+		case "pair":
+			emit(n.ChildByFieldName("value", e.lang))
+		case "array":
+			for _, c := range namedChildren(n) {
+				emit(c)
+			}
+		}
+	})
+}
+
+// standaloneURL 与 goja 引擎保持同一判定：必须能锚定到站点根或绝对地址。
+func standaloneURL(s string) bool {
+	if !urlLike(s) {
+		return false
+	}
+	for _, p := range []string{"/", "http://", "https://", "./", "../"} {
+		if strings.HasPrefix(s, p) {
+			return true
+		}
+	}
+	return false
+}
+
+// urlishMemberNode 判断成员赋值的属性名是否具备 URL 语义。
+func urlishMemberNode(left *gotreesitter.Node, src []byte, lang *gotreesitter.Language) bool {
+	var name string
+	switch left.Type(lang) {
+	case "member_expression":
+		if p := left.ChildByFieldName("property", lang); p != nil {
+			name = p.Text(src)
+		}
+	case "subscript_expression":
+		if c := namedChildren(left); len(c) >= 2 {
+			name = strings.Trim(c[1].Text(src), `"'`+"`")
+		}
+	default:
+		return false
+	}
+	switch strings.ToLower(name) {
+	case "href", "src", "action", "url", "uri", "path", "pathname",
+		"location", "redirect", "endpoint", "link", "target", "data":
+		return true
+	}
+	return false
 }
 
 func (e *extractor) calleeOf(n *gotreesitter.Node) (obj, name string) {

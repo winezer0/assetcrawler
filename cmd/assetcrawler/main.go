@@ -56,6 +56,8 @@ func main() {
 		noSitemap = flag.Bool("no-sitemap", false, "do not read sitemap.xml")
 		noJS      = flag.Bool("no-js", false, "disable JS/CSS endpoint extraction")
 		jsEngine  = flag.String("js-engine", "regex", "JS extraction engine: regex | goja | treesitter")
+		noChunk   = flag.Bool("no-chunk-graph", false, "disable chunk/route graph recovery from bundles")
+		routeExec = flag.Bool("route-exec", false, "allow executing webpack chunks to recover routes (needs -tags routeexec; runs target code)")
 		silent    = flag.Bool("silent", false, "only print URLs, no summary")
 		verbose   = flag.Bool("v", false, "print errors to stderr")
 		ua        = flag.String("ua", "", "custom User-Agent")
@@ -88,6 +90,8 @@ func main() {
 	opts.FollowSitemap = !*noSitemap
 	opts.ExtractJS = !*noJS
 	opts.JSEngine = assetcrawler.JSEngine(*jsEngine)
+	opts.ExtractChunkGraph = !*noChunk
+	opts.RouteExec = *routeExec
 	opts.KnownFiles = known
 	if *ua != "" {
 		opts.UserAgent = *ua

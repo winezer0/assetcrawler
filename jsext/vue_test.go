@@ -96,3 +96,51 @@ func keys(m map[string]jsext.Request) []string {
 	}
 	return out
 }
+
+// TestStandaloneLiterals 锁定「不在调用参数里、也不是拼接」的字面量收集。
+//
+// 这三类写法在 SPA 里极常见，之前整体漏掉：
+// 成员赋值（动态插链接）、对象属性值（配置表）、数组元素（批量路由/资源）。
+// 同时不能把 `var base = "/api/v3"` 这种前缀常量当成接口。
+func TestStandaloneLiterals(t *testing.T) {
+	const src = `
+a.href = "/dyn/injected-a";
+f.src = "/dyn/iframe";
+window.__cfg = { plain: "/api/in-js-file", cdn: "https://cdn.example.com/x" };
+var list = ["/api/day-a", "/api/day-b"];
+var base = "/api/v3";
+`
+	engines := map[string]jsext.Engine{"goja": goja.Extract, "treesitter": treesitter.Extract}
+	for name, fn := range engines {
+		t.Run(name, func(t *testing.T) {
+			reqs, err := fn([]byte(src))
+			if err != nil {
+				t.Fatalf("解析失败: %v", err)
+			}
+			got := map[string]bool{}
+			for _, r := range reqs {
+				got[r.URL] = true
+			}
+			for _, want := range []string{
+				"/dyn/injected-a", "/dyn/iframe",
+				"/api/in-js-file", "https://cdn.example.com/x",
+				"/api/day-a", "/api/day-b",
+			} {
+				if !got[want] {
+					t.Errorf("缺少 %s，实际: %v", want, keysOf(got))
+				}
+			}
+			if got["/api/v3"] {
+				t.Error("var 前缀常量不应被当成接口")
+			}
+		})
+	}
+}
+
+func keysOf(m map[string]bool) []string {
+	out := make([]string, 0, len(m))
+	for k := range m {
+		out = append(out, k)
+	}
+	return out
+}

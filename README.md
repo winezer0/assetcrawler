@@ -25,19 +25,24 @@ sitemap.xml。不启动无头浏览器，不执行 JavaScript。
 assetcrawler/      编排层：种子、BFS 调度、结果组装
 ├── fetcher/     HTTP 抓取：连接池、限速、按 host 并发、重试、重定向链、body 截断
 ├── extractor/   URL 提取：纯函数，输入 HTML/响应头/脚本文本，输出原始字符串
-└── frontier/    归一化 + 范围判定 + 去重
+├── frontier/    归一化 + 范围判定 + 去重
+├── routegraph/  打包产物恢复：chunk 文件名 + 前端路由表（自带的 JS 词法分析器）
+└── jsext/       JS AST 提取引擎：统一契约 + goja / gotreesitter 两套实现
 ```
 
-依赖单向，三个子包互不 import：
+依赖单向，子包之间没有横向依赖（jsext 的两个实现只依赖 jsext 契约，
+extractor 通过 Options 注入 jsext 的能力，因此自身仍是零第三方依赖）：
 
 ```
 assetcrawler ──┬──> fetcher
-             ├──> extractor
-             └──> frontier
+             ├──> extractor ──(注入)──> jsext/{goja,treesitter}
+             ├──> frontier
+             └──> routegraph
 ```
 
-分工边界是刻意的：**extractor 不认识 URL 语义，frontier 不认识 HTML，fetcher 不认识「爬虫」**。
-所以想单独要「一张页面里所有 URL」的人，可以只 import `extractor`，完全不牵扯 HTTP 栈。
+分工边界是刻意的：**extractor 不认识 URL 语义，frontier 不认识 HTML，fetcher 不认识「爬虫」，
+routegraph 不认识网络**。所以想单独要「一张页面里所有 URL」的人，可以只 import `extractor`；
+想单独从一份 bundle 里要 chunk 清单的人，可以只 import `routegraph`。
 
 ## 能力
 
@@ -62,6 +67,42 @@ SSI 的 `<!--#include virtual|file="x"-->`、Dreamweaver 的
 **JS / CSS 内容提取**
 从脚本源码里捞绝对 URL、引号包裹的绝对路径、相对路径、`sourceMappingURL`。
 自动过滤静态图片/字体路径与模板占位符（`${}`、`%s`）。
+
+**打包产物里的 chunk 与前端路由（`routegraph` 包）**
+
+懒加载 chunk 和 SPA 路由都不挂在任何静态链接上，普通爬虫看不到。从 bundle 的
+运行时清单里静态恢复两类目标：
+
+- **chunk 文件名**：webpack 4/5 的 `__webpack_require__.u`（含 hash 查找表）、
+  `__vite__mapDeps`、动态 `import()` 说明符。
+  `o.u = e => "chunk-" + e + "." + {101:"a1b2c3"}[e] + ".js"` 这类写法里，
+  文件名里的 `e` 与查表下标的 `e` 是同一个变量，必须按**同一个 key** 对齐，
+  否则会拼出 `chunk-101.d4e5f6.js` 这种不存在的组合。
+- **前端路由表**：括号栈扫描 `{path:"/x", component|name|element|children}` 形状的对象，
+  不依赖 AST，对压缩与 ESM 产物一致有效。
+
+结果带 `kind` 字段：`chunk` 是真实文件（会抓取），`route` 是前端路由
+（也抓取，但调用方可据此过滤——SPA 的 `/admin/users` 在服务端往往只是同一个 index.html）。
+
+```bash
+assetcrawler -u https://target/ -jsonl -js-engine goja   # 默认开启
+assetcrawler -u https://target/ -no-chunk-graph           # 关掉
+```
+
+**执行兜底（可选编译）**
+
+路由表如果由运行时 `map` 生成（`sections.map(s => ({path:"/"+s}))`），静态解析拿不到，
+可以用 goja 把 chunk 真跑一遍。它会链接 goja 的完整 VM，二进制从 15.2MB 涨到 23.7MB，
+因此做成编译期可选：
+
+```bash
+go build -tags routeexec -o assetcrawler ./cmd/assetcrawler
+assetcrawler -u https://target/ -route-exec
+```
+
+限制很明确：只对自注册的 webpack chunk（`self.webpackChunkX.push(...)`）有效；
+ESM/Vite 产物完全不支持（goja 不认 `import`/`export`，连动态 `import()` 都报语法错误）；
+必须带超时（默认 2 秒），因为它在运行目标站的代码。
 
 **入口补充**
 `robots.txt`（Sitemap 声明）、`sitemap.xml`（递归处理 sitemap index、支持 gzip）、
@@ -140,9 +181,11 @@ type Result struct {
 	Attribute   string // 该 URL 来自哪个属性
 	Tag         string
 	Depth       int
-	StatusCode  int    // 0 表示未实际访问（如 robots 里的线索）
+	StatusCode  int    // 0 表示未实际访问（如 robots 线索、含 EXPR 的模板）
 	ContentType string
 	Referer     string
+	Confidence  string // 空 | template（含 EXPR，只输出不抓取）
+	Kind        string // 空 | chunk（打包分片）| route（前端路由）
 }
 ```
 
