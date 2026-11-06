@@ -27,6 +27,11 @@ func expandRoutePath(p string) (string, bool) {
 	for i, s := range segs {
 		switch {
 		case strings.HasPrefix(s, ":"):
+			// `:lang(.*)` 这类带正则约束的参数无法安全实例化：
+			// 它匹配的是一段模式而不是单值，填任何占位符都不代表真实取值。
+			if strings.Contains(s, "(") {
+				return "", false
+			}
 			segs[i] = routeParamPlaceholder
 			changed = true
 		case strings.HasPrefix(s, "*"):

@@ -19,6 +19,7 @@ func TestExpandRoutePath(t *testing.T) {
 		{"/user/:id", "/user/1", true},
 		{"/user/:id/posts/:postId", "/user/1/posts/1", true},
 		{"/files/*rest", "/files/index", true},
+		{"/:lang(.*)", "", false}, // 正则约束参数无法安全实例化
 		{"/plain/path", "", false},
 		{"/", "", false},
 	}
