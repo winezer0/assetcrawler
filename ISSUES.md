@@ -1,6 +1,6 @@
 # 现存问题清单
 
-整理日期：2026-11-06 10:12；更新 12:50
+整理日期：2026-11-06 10:12；更新 19:40
 代码状态：P0-1 / P0-2 / P0-3 已修复（见各条状态）
 说明：所有结论均来自本地实测；每条给出证据、影响与修法，成本为代码量级估计。
 
@@ -81,6 +81,29 @@ axios.post("/api/create",{name:"x",age:2})         →  /api/create（未改写�
 
 顺带确认了一个既有语义：**404 不返回错误**（状态码本身是证据），
 只有 5xx 重试耗尽才返回 `StatusError`。
+
+---
+
+### P0-4 常量表不分作用域，跨模块同名变量产出错误 URL
+
+`jsext/treesitter` 的 `extractor.vars` 是一张全局 map，`collectConsts` 后写覆盖先写。
+压缩/打包产物里每个模块各自声明 `const n=...` 是常态，后一个模块的值会污染前一个：
+
+```js
+(function(){ const n="/api/v1"; http.get(n+"/users") })();
+(function(){ const n="/static"; http.get(n+"/logo.png") })();
+(function(){ const n="/admin";  http.get(n+"/panel") })();
+```
+
+实测（2026-11-06）：4 条里 **2 条是错的**——`/admin/users`、`/admin/logo.png`，
+真实地址应为 `/api/v1/users` 与 `/static/logo.png`。错误 URL 会被当真实资产抓取，浪费配额。
+
+触发条件有限：terser 会内联单次使用的常量，**压缩产物里往往不触发**
+（7 个真实样本：vuejs 5 个 + webpack 2 个，均未命中）；未压缩部署才会暴露。
+
+修法：按最近的 `function_declaration / function_expression / arrow_function /
+method_definition / program` 划分作用域，查找时逐层向上（`gotreesitter.Node.Parent()` 可用）。
+约 60 行，无新增依赖。评估过程见 `ESBUILD-ANALYSIS.md`。
 
 ---
 
@@ -199,6 +222,20 @@ ESM 必须靠它（`ESM-ANALYSIS.md`），但不能删。可优化方向是「�
 ---
 
 ## 三、工程与文档
+
+### P1-8 import 别名导致 HTTP 方法丢失
+
+```js
+import { get as fetchIt } from "axios";
+fetchIt("/api/alias-get");
+```
+
+URL 能拿到，但 `method` 为空：`fetchIt` 既不在 `httpClients` 表里，也不是 HTTP 动词。
+同理 `import request from "@/utils/request"` 包装后的调用点全部丢方法。
+
+修法：解析 `import` 语句建 `本地名 → (模块, 原名)` 映射，判定 callee 时先查表。
+约 30 行，不需要符号表。压缩产物里多已退化成 `(0,n.get)`，靠动词判定可命中，
+所以影响集中在未压缩 ESM。
 
 ### P2-1 内存没有上限
 

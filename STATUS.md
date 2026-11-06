@@ -113,6 +113,7 @@
 | 参数取值的枚举（select / radio / hidden） | 只记录参数名 |
 | `cmd` 的 CLI 测试 | 0% 覆盖，flag 组合靠手工验证 |
 | 大站点内存上限 | `seen` / `results` 常驻，10 万 URL 规模未测 |
+| 接入 esbuild | 评估完成：真实产物零增量，优势可本地覆盖（`ESBUILD-ANALYSIS.md`） |
 
 以上都在 `ISSUES.md` 里按 P0/P1/P2 分级，并标了证据与修法成本。
 

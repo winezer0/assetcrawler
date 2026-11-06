@@ -159,12 +159,15 @@ res.URLs()               // 可抓取的 URL（跳过通配与 scheme-only）
 - **goja 解析不了 ESM**（`import`/`export`/`import.meta`/顶层 `await`），
   而 Vite 构建的站点入口 chunk 就是 ESM——实测 `vuejs.org` 与 `vite.dev` 的入口文件
   让 goja 在第一个 token 就报错，整份文件会退化成正则。
-- **treesitter 全能但慢**：1MB 输入约 3.1s（goja 1.7s），且语法表让二进制多约 7.7MB。
+- **treesitter 全能但慢**：1MB 输入约 3.1s（goja 1.7s），语法表让二进制多约 4.1MB（符号段实测）。
 - 串联之后：常规脚本走快路径，ESM 走完整解析，两者都不牺牲。
 
 goja 遇到 ESM 时**显式报错**而不是「剥掉 import/export 再试」——后者会让
 `export default {a:"/x"}` 变成代码块解析成功，既不报错也提取不到内容，
 自动兜底链根本不会触发。详见 `ESM-ANALYSIS.md`。
+
+为什么不用 esbuild 换掉 treesitter：真实产物上零增量，它的优势（作用域、import 溯源）
+可以用本地代码覆盖，详见 `ESBUILD-ANALYSIS.md`。
 
 **入口补充**
 `robots.txt`（Sitemap 声明）、`sitemap.xml`（递归处理 sitemap index、支持 gzip）、
