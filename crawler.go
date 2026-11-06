@@ -112,6 +112,11 @@ func (c *Crawler) Crawl(ctx context.Context, seeds ...string) ([]Result, error) 
 		current = next
 	}
 
+	// 上限截断必须让调用方知道：静默少收一半结果比直接报错更难排查。
+	if n := c.frontier.Dropped(); n > 0 {
+		c.emitError("frontier", fmt.Errorf("已见集合达到上限 %d，%d 条 URL 未入队，结果不完整（可用 -max-seen 调整）", c.opts.MaxSeen, n))
+	}
+
 	c.mu.Lock()
 	out := make([]Result, len(c.results))
 	copy(out, c.results)

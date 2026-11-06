@@ -5,144 +5,41 @@
 //	assetcrawl -u https://example.com -d 3 -o urls.txt
 //	assetcrawl -u https://example.com -jsonl -o result.jsonl
 //	assetcrawl -u https://example.com -scope same-host -H "Cookie: a=b"
+//
+// 参数解析与 Options 的映射在 flags.go，本文件只负责跑起来并把结果打出去。
 package main
 
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"flag"
 	"fmt"
 	"os"
 	"os/signal"
-	"regexp"
-	"strings"
 	"sync"
 	"syscall"
-	"time"
 
 	"assetcrawler"
 )
 
-type multiFlag []string
-
-func (m *multiFlag) String() string { return strings.Join(*m, ",") }
-func (m *multiFlag) Set(v string) error {
-	for _, p := range strings.Split(v, ",") {
-		if p = strings.TrimSpace(p); p != "" {
-			*m = append(*m, p)
-		}
-	}
-	return nil
-}
-
 func main() {
-	var (
-		urls        multiFlag
-		headers     multiFlag
-		known       multiFlag
-		depth       = flag.Int("d", 3, "max crawl depth (0 = unlimited)")
-		conc        = flag.Int("c", 10, "global concurrency")
-		perHost     = flag.Int("phc", 4, "per-host concurrency")
-		rateLimit   = flag.Int("rl", 0, "global requests per second (0 = unlimited)")
-		timeout     = flag.Int("timeout", 10, "per-request timeout in seconds")
-		maxURLs     = flag.Int("max-urls", 2000, "max pages to fetch")
-		maxBody     = flag.Int64("max-body", 2<<20, "max response body bytes")
-		scope       = flag.String("scope", "subdomain", "scope: same-host | subdomain | any")
-		proxy       = flag.String("proxy", "", "proxy URL, e.g. http://127.0.0.1:8080")
-		output      = flag.String("o", "", "write results to file (default stdout)")
-		asJSONL     = flag.Bool("jsonl", false, "output JSONL instead of plain URLs")
-		insecure    = flag.Bool("k", false, "skip TLS verification")
-		noRobots    = flag.Bool("no-robots", false, "do not read robots.txt")
-		noSitemap   = flag.Bool("no-sitemap", false, "do not read sitemap.xml")
-		noJS        = flag.Bool("no-js", false, "disable JS/CSS endpoint extraction")
-		jsEngine    = flag.String("js-engine", "auto", "JS extraction engine: auto | regex | goja | treesitter")
-		noChunk     = flag.Bool("no-chunk-graph", false, "disable chunk/route graph recovery from bundles")
-		routeExec   = flag.Bool("route-exec", false, "allow executing webpack chunks to recover routes (runs target site JS; off by default)")
-		routeExpand = flag.Bool("route-expand", false, "expand :param routes with placeholders and fetch them (capped by -route-expand-max)")
-		routeMax    = flag.Int("route-expand-max", 50, "max routes to expand when -route-expand is on")
-		silent      = flag.Bool("silent", false, "only print URLs, no summary")
-		verbose     = flag.Bool("v", false, "print errors to stderr")
-		ua          = flag.String("ua", "", "custom User-Agent")
-		exclude     = flag.String("exclude", "", "exclude URLs matching this regex")
-		include     = flag.String("include", "", "only keep URLs matching this regex")
-	)
-
-	flag.Var(&urls, "u", "target URL (repeatable or comma-separated)")
-	flag.Var(&headers, "H", "extra header, e.g. -H 'Cookie: a=b' (repeatable)")
-	flag.Var(&known, "known-file", "extra fixed path to probe, e.g. -known-file /.git/config")
-	flag.Parse()
-
-	if len(urls) == 0 {
+	cfg, err := parseArgs(os.Args[1:], os.Stderr)
+	if err != nil {
+		if errors.Is(err, flag.ErrHelp) {
+			return
+		}
+		fmt.Fprintf(os.Stderr, "%v\n", err)
 		fmt.Fprintln(os.Stderr, "usage: assetcrawl -u <url> [-d depth] [-o out.txt] [-jsonl]")
-		flag.PrintDefaults()
 		os.Exit(2)
 	}
 
-	opts := assetcrawler.DefaultOptions()
-	opts.MaxDepth = *depth
-	opts.Concurrency = *conc
-	opts.PerHostConcurrency = *perHost
-	opts.RateLimit = *rateLimit
-	opts.MaxURLs = *maxURLs
-	opts.MaxBodySize = *maxBody
-	opts.Timeout = seconds(*timeout)
-	opts.Proxy = *proxy
-	opts.Insecure = *insecure
-	opts.FollowRobots = !*noRobots
-	opts.FollowSitemap = !*noSitemap
-	opts.ExtractJS = !*noJS
-	opts.JSEngine = assetcrawler.JSEngine(*jsEngine)
-	opts.ExtractChunkGraph = !*noChunk
-	opts.RouteExec = *routeExec
-	opts.RouteExpand = *routeExpand
-	opts.MaxRouteExpand = *routeMax
-	opts.KnownFiles = known
-	if *ua != "" {
-		opts.UserAgent = *ua
-	}
-	switch *scope {
-	case "same-host":
-		opts.Scope = assetcrawler.ScopeSameHost
-	case "any":
-		opts.Scope = assetcrawler.ScopeAny
-	default:
-		opts.Scope = assetcrawler.ScopeSubdomain
-	}
-	if *exclude != "" {
-		re, err := regexp.Compile(*exclude)
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "invalid -exclude regex: %v\n", err)
-			os.Exit(2)
-		}
-		opts.ExcludeRegex = append(opts.ExcludeRegex, re)
-	}
-	if *include != "" {
-		re, err := regexp.Compile(*include)
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "invalid -include regex: %v\n", err)
-			os.Exit(2)
-		}
-		opts.IncludeRegex = append(opts.IncludeRegex, re)
-	}
-	for _, h := range headers {
-		k, v, ok := strings.Cut(h, ":")
-		if !ok {
-			continue
-		}
-		if opts.Headers == nil {
-			opts.Headers = make(map[string][]string)
-		}
-		k = strings.TrimSpace(k)
-		opts.Headers[k] = append(opts.Headers[k], strings.TrimSpace(v))
-	}
+	opts := cfg.Opts
 
-	// 输出
-	var (
-		outWriter = os.Stdout
-		file      *os.File
-	)
-	if *output != "" {
-		f, err := os.Create(*output)
+	outWriter := os.Stdout
+	var file *os.File
+	if cfg.OutputPath != "" {
+		f, err := os.Create(cfg.OutputPath)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "cannot create output file: %v\n", err)
 			os.Exit(1)
@@ -158,15 +55,15 @@ func main() {
 		uniq  = make(map[string]struct{}, 1024)
 	)
 	opts.OnResult = func(r assetcrawler.Result) {
-		// StatusCode 为 0 表示这类结果是推测出来的线索（如 robots 里的路径），不可访问
 		wmu.Lock()
 		defer wmu.Unlock()
-		if _, dup := uniq[r.URL]; dup && !*asJSONL {
+		// 纯 URL 输出要去重；JSONL 保留每条结果的来源差异
+		if _, dup := uniq[r.URL]; dup && !cfg.JSONL {
 			return
 		}
 		uniq[r.URL] = struct{}{}
 		count++
-		if *asJSONL {
+		if cfg.JSONL {
 			b, err := json.Marshal(r)
 			if err == nil {
 				fmt.Fprintln(outWriter, string(b))
@@ -175,7 +72,7 @@ func main() {
 		}
 		fmt.Fprintln(outWriter, r.URL)
 	}
-	if *verbose {
+	if cfg.Verbose {
 		opts.OnError = func(u string, err error) {
 			fmt.Fprintf(os.Stderr, "[err] %s: %v\n", u, err)
 		}
@@ -191,23 +88,15 @@ func main() {
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer cancel()
 
-	results, err := crawler.Crawl(ctx, urls...)
-	if err != nil && err != context.Canceled {
+	results, err := crawler.Crawl(ctx, cfg.URLs...)
+	if err != nil && !errors.Is(err, context.Canceled) {
 		fmt.Fprintf(os.Stderr, "crawl error: %v\n", err)
 	}
 
 	if file != nil {
 		file.Sync()
 	}
-	if !*silent {
+	if !cfg.Silent {
 		fmt.Fprintf(os.Stderr, "\n[done] %d URLs collected\n", len(results))
 	}
-}
-
-// seconds 把秒数转成 time.Duration，供 flag 使用。
-func seconds(n int) time.Duration {
-	if n <= 0 {
-		return 10 * time.Second
-	}
-	return time.Duration(n) * time.Second
 }

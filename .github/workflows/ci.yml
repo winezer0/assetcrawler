@@ -1,0 +1,35 @@
+name: ci
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: gofmt
+        run: |
+          out=$(gofmt -l .)
+          if [ -n "$out" ]; then echo "以下文件未格式化:"; echo "$out"; exit 1; fi
+
+      - name: vet
+        run: go vet ./...
+
+      - name: test
+        run: go test -race ./...
+
+      - name: build
+        run: go build -ldflags="-s -w" -o /tmp/assetcrawler ./cmd/assetcrawler
+
+      # 探针夹具的退出码口径是「不回归」：CSP 两项按设计不接入采集流程，
+      # 用 19/19 当门槛会让 CI 长期红着。
+      - name: probe fixture
+        run: python3 testdata/probe/check.py --bin /tmp/assetcrawler

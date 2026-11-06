@@ -47,14 +47,21 @@ type Options struct {
 	Include []*regexp.Regexp
 	// Exclude 命中则丢弃该 URL。
 	Exclude []*regexp.Regexp
+	// MaxSeen 限制已见集合的条数，0 表示不限制。
+	//
+	// 这个集合是常驻内存的：10 万 URL 约几十 MB，且永远不会缩小。
+	// 超大站点上它会成为唯一没有上限的增长点，所以给一个硬顶，
+	// 超出后拒绝新 URL 并计数，由调用方决定是否提示。
+	MaxSeen int
 }
 
 // Frontier 维护种子基准与已见集合，须并发安全。
 type Frontier struct {
-	opts  Options
-	seeds []*url.URL
-	seen  map[string]struct{}
-	mu    sync.Mutex
+	opts    Options
+	seeds   []*url.URL
+	seen    map[string]struct{}
+	dropped int
+	mu      sync.Mutex
 }
 
 // New 创建 Frontier。
@@ -99,6 +106,10 @@ func (f *Frontier) Push(raw string, base *url.URL) (*url.URL, bool) {
 	if _, dup := f.seen[key]; dup {
 		return nil, false
 	}
+	if f.opts.MaxSeen > 0 && len(f.seen) >= f.opts.MaxSeen {
+		f.dropped++
+		return nil, false
+	}
 	f.seen[key] = struct{}{}
 	return u, true
 }
@@ -116,6 +127,15 @@ func (f *Frontier) MarkSeen(u *url.URL) bool {
 	}
 	f.seen[key] = struct{}{}
 	return true
+}
+
+// Dropped 返回因 MaxSeen 上限被拒绝的 URL 数。
+//
+// 非零说明这次采集的结果不完整——调用方应当提示，而不是当作正常结束。
+func (f *Frontier) Dropped() int {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return f.dropped
 }
 
 // Len 返回已见 URL 总数，便于统计。

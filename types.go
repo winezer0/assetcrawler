@@ -117,6 +117,13 @@ type Options struct {
 	RouteExpand bool
 	// MaxRouteExpand 单次采集最多展开多少条路由，默认 50。
 	MaxRouteExpand int
+
+	// MaxSeen 已见集合的条数上限，默认 200000，0 表示不限制。
+	//
+	// 已见集合常驻内存且不会缩小，是超大站点上唯一没有上限的增长点。
+	// 超出后新 URL 被拒绝并计数，采集结束时通过 OnError 报一次，
+	// 避免「结果看起来完整、其实被截断」。
+	MaxSeen int
 	// Insecure 跳过 TLS 证书校验。
 	Insecure bool
 	// Proxy 形如 http://127.0.0.1:8080 或 socks5://127.0.0.1:1080。空表示直连。
@@ -162,6 +169,7 @@ func DefaultOptions() *Options {
 		RouteExec:          false,
 		RouteExpand:        false,
 		MaxRouteExpand:     50,
+		MaxSeen:            200000,
 		Retries:            1,
 		MaxRedirects:       5,
 	}
@@ -212,6 +220,7 @@ func (o *Options) frontierOptions() frontier.Options {
 		Scope:   o.Scope,
 		Include: o.IncludeRegex,
 		Exclude: o.ExcludeRegex,
+		MaxSeen: o.MaxSeen,
 	}
 }
 

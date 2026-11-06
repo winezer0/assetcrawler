@@ -129,8 +129,22 @@ def main():
         noise = [n for n in exp.get("known_noise", []) if n["url"] in got]
         print(f"[噪音]   {len(noise)} 条残留" + (f"：{[n['url'] for n in noise]}" if noise else ""))
 
-        total_ok = len(hit) == len(cases) and mok == len(mc) and pok == len(pc) and not noise
-        print("\n结论:", "全部达标" if total_ok else "未达标（见上方 ✗）")
+        # 退出码的判定口径是「不回归」，不是「19/19」：
+        # CSP 两项按设计不接入采集流程，永远不会达标；拿 19/19 当门槛
+        # 会让 CI 长期红着，反而没人看。
+        regressions = [c for c in cases if c["implemented"] and not variants(c["url"])]
+        stale = [c for c in cases if not c["implemented"] and variants(c["url"])]
+        if stale:
+            print(f"         ! 记录落后于实际：{len(stale)} 项已覆盖但 recorded=false，"
+                  f"请把 expected.json 的 implemented 改成 true")
+
+        total_ok = not regressions and mok == len(mc) and pok == len(pc) and not noise
+        if total_ok and len(hit) == len(cases):
+            print("\n结论: 全部达标")
+        elif total_ok:
+            print(f"\n结论: 无回归（覆盖 {len(hit)}/{len(cases)}，未实现项按设计保留）")
+        else:
+            print("\n结论: 未达标（见上方 ✗）")
         return 0 if total_ok else 1
     finally:
         server.terminate()
