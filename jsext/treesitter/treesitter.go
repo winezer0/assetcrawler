@@ -42,8 +42,15 @@ func Extract(src []byte) ([]jsext.Request, error) {
 	}
 	defer tree.Release()
 
-	e := &extractor{src: src, lang: lang, vars: map[string]string{}, prefixVars: map[string]bool{}}
+	e := &extractor{
+		src: src, lang: lang,
+		vars:       map[string]string{},
+		prefixVars: map[string]bool{},
+		imports:    map[string]importRef{},
+	}
 	root := tree.RootNode()
+	// 绑定先建：方法判定发生在收集调用点的当时，映射晚建等于没有。
+	e.collectImportBindings(root)
 	e.collectConsts(root)
 	e.collectCalls(root)
 	e.collectBinaries(root)
@@ -60,7 +67,9 @@ type extractor struct {
 	vars map[string]string
 	// prefixVars 记录被当作拼接前缀使用的变量，用于区分 base 常量与完整端点。
 	prefixVars map[string]bool
-	out        []jsext.Request
+	// imports 把 import 绑定还原成「本地名 → 来源」，供方法判定使用。
+	imports map[string]importRef
+	out     []jsext.Request
 }
 
 // collectPrefixVars 记录被用作拼接前缀的变量（与 goja 引擎同一判据）。
@@ -286,6 +295,13 @@ func (e *extractor) collectBinaries(root *gotreesitter.Node) {
 }
 
 func (e *extractor) methodOf(obj, name string, args []*gotreesitter.Node) string {
+	// import 别名：`import { get as fetchIt }` 之后 fetchIt("/x") 也判 GET。
+	// 只对裸标识符生效——obj.method 形式另有判定路径。
+	if obj == "" {
+		if m := e.importedMethod(name); m != "" {
+			return m
+		}
+	}
 	lower := strings.ToLower(name)
 	if httpClients[obj] {
 		if m, ok := httpVerbs[lower]; ok {
