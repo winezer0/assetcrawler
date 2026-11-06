@@ -9,7 +9,7 @@
 |---|---|
 | 覆盖率 | crawler 71.3% / extractor 80.7% / frontier 77.2% / jsext 80.6% / routegraph 82.1% |
 | 零覆盖 | `fetcher`（383 行）、`cmd/assetcrawler` |
-| 二进制 | 默认 15.22 MB；`-tags routeexec` 23.70 MB |
+| 二进制 | 默认 23.70 MB（含执行兜底，无构建标签） |
 | 探针 | 13/19 载体、方法 5/5、参数 3/3、噪音 0（**仅限 `-js-engine goja`**） |
 | 未覆盖载体 | og/twitter meta、data-*、CSP×2、sourcemap sources |
 
@@ -156,7 +156,7 @@ JSON 的 `next` 已能拿到（P0-3 完成）。剩下的是 `?page=N` 的有限
 
 ### P3-2 CI
 
-GitHub Actions：`gofmt -l`、`go vet`、`go test -race`、`-tags routeexec` 构建、
+GitHub Actions：`gofmt -l`、`go vet`、`go test -race`、`-s -w` 发布构建、
 探针夹具（起 Python 桩站跑 `check.py`）。目前所有验证都是手工跑的，容易漏。
 
 ### P3-3 大站点内存
@@ -169,7 +169,7 @@ GitHub Actions：`gofmt -l`、`go vet`、`go test -race`、`-tags routeexec` 构
 ## 明确不做（已定边界，不再讨论）
 
 - 敏感信息提取、目录 fuzz、漏洞检测、指纹识别
-- 执行 JS 渲染 DOM（`routeexec` 只执行 webpack chunk 取路由，不渲染）
+- 执行 JS 渲染 DOM（执行兜底只跑 webpack chunk 取路由，不渲染）
 - CSV/HTML 报告导出（返回 `Result`，序列化交给调用方）
 
 ---

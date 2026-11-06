@@ -100,16 +100,20 @@ assetcrawler -u https://target/ -jsonl                # 默认开启
 assetcrawler -u https://target/ -no-chunk-graph       # 关掉
 ```
 
-**执行兜底（可选编译）**
+**执行兜底（默认编入）**
 
 路由表如果由运行时 `map` 生成（`sections.map(s => ({path:"/"+s}))`），静态解析拿不到，
-可以用 goja 把 chunk 真跑一遍。它会链接 goja 的完整 VM，二进制从 15.2MB 涨到 23.7MB，
-因此做成编译期可选：
+可以用 goja 把 chunk 真跑一遍。这条能力**默认编在二进制里**，不需要构建标签：
 
 ```bash
-go build -tags routeexec -o assetcrawler ./cmd/assetcrawler
 assetcrawler -u https://target/ -route-exec
 ```
+
+代价是链接 goja 的完整 VM：二进制从 15.22 MB 涨到 23.70 MB（+8.48 MB）。
+没有做成可选编译，因为「同一个程序有两种能力」会让基线和结论失去可比性。
+
+运行时开关默认关闭（`Options.RouteExec = false`）——它会执行目标站的代码，
+属于需要主动同意的动作，而不是功能阉割。
 
 限制很明确：只对自注册的 webpack chunk（`self.webpackChunkX.push(...)`）有效；
 ESM/Vite 产物完全不支持（goja 不认 `import`/`export`，连动态 `import()` 都报语法错误）；

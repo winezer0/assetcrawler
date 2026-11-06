@@ -227,8 +227,7 @@ __webpack_require__.e = function (e) { __chunks.push(e); return Promise.resolve(
 | `routegraph/chunk.go` | webpack `u`（含 hash 表按 key 对齐）、vite mapDeps、动态 import |
 | `routegraph/routes.go` | 括号栈扫路由表（path + component/name/element/children） |
 | `routegraph/routegraph.go` | `Extract()` 入口 + `LooksLikeBundle()` 粗筛 |
-| `routegraph/exec.go` | goja 执行兜底（`//go:build routeexec`） |
-| `routegraph/exec_stub.go` | 未启用标签时的占位，返回明确错误 |
+| `routegraph/exec.go` | goja 执行兜底（默认编入，无构建标签；运行时由 `-route-exec` 开启） |
 
 接入点：`crawler.extractAll` 的 JS 分支，**先跑 routegraph 再跑通用 JS 提取**——
 两者可能产出同一 URL，frontier 先到先得，带类型标记的必须排前面，否则 `kind` 会丢。
@@ -237,8 +236,8 @@ __webpack_require__.e = function (e) { __chunks.push(e); return Promise.resolve(
 
 | 项 | 结果 |
 |---|---|
-| 默认二进制 | 15.22 MB（与改动前持平） |
-| `-tags routeexec` | 23.70 MB（+8.48 MB，goja VM 的代价） |
+| 默认二进制（执行兜底未编入时） | 15.22 MB |
+| 默认二进制（现行，执行兜底已编入） | 23.70 MB（+8.48 MB，goja VM 的代价） |
 | 动态靶站（`testdata/dynamic_fixture.py`） | 8 条 → **12 条**，多出的正是 `a.href=` / `f.src=` / `setTimeout` 里那些运行时才注入的 URL |
 | vue 夹具 | 恢复出 `/static/js/chunk-101.a1b2c3.js`（200）与 `chunk-102`，路由表命中 |
 | 探针夹具 / testasp 基线 | 无回退（11/19、5/5、0 噪音；testasp 差异仍是站点内容变化） |

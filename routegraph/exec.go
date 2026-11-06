@@ -1,5 +1,3 @@
-//go:build routeexec
-
 package routegraph
 
 import (
@@ -13,6 +11,11 @@ import (
 )
 
 // 执行兜底：把 webpack 的懒加载 chunk 真跑一遍，从模块导出的路由对象里取路由。
+//
+// 默认编入，没有构建标签。代价是链接 goja 的完整 VM，实测让二进制
+// 从 15.2MB 涨到 23.7MB（+8.5MB）；换来的是「能力与二进制」唯一对应，
+// 不再出现「这个二进制没有执行兜底」的口径分裂。
+// 是否真的执行由 Options.RouteExec 决定，默认关闭（见下）。
 //
 // 只解决静态解析拿不到的那一种情况：路由表由运行时 map/concat 生成，
 // 源码里根本没有完整的 path 字面量。
@@ -199,9 +202,6 @@ for (var x = 0; x < __exportedRoutes.length; x++) {
 
 JSON.stringify({ routes: __out, chunkIds: __chunkIds });
 `
-
-// ExecAvailable 表示当前二进制是否编入了执行兜底。
-func ExecAvailable() bool { return true }
 
 // ExtractByExec 执行一段 webpack chunk，从其模块导出里恢复路由与懒加载 chunk id。
 //

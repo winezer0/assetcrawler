@@ -1,5 +1,3 @@
-//go:build routeexec
-
 package routegraph
 
 import (

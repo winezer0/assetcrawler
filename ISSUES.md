@@ -214,9 +214,8 @@ ESM 必须靠它（`ESM-ANALYSIS.md`），但不能删。可优化方向是「�
 
 ### P2-3 CLI 零测试
 
-`-route-exec` 在默认构建下 exit 2 这条行为，只有手工验证过一次。
-flag 组合（`-no-js` / `-no-chunk-graph` / `-js-engine` 与 Options 的映射）
-没有任何自动化覆盖。
+flag 组合（`-no-js` / `-no-chunk-graph` / `-js-engine` / `-route-exec` 与 Options 的映射）
+没有任何自动化覆盖，只有手工验证。
 
 ### P2-4 覆盖率数字容易被误读
 
@@ -242,7 +241,7 @@ flag 组合（`-no-js` / `-no-chunk-graph` / `-js-engine` 与 Options 的映射�
 
 | 项 | 理由 |
 |---|---|
-| 不执行 JS 渲染 DOM | 与零浏览器目标冲突；`routeexec` 只执行 webpack chunk 取路由 |
+| 不执行 JS 渲染 DOM | 与零浏览器目标冲突；执行兜底只跑 webpack chunk 取路由 |
 | 不做目录 fuzz / 猜路径 | 笛卡尔积穷举，请求量立方增长 |
 | 不做敏感信息提取 | 内容分析，非 URL 采集 |
 | `template` 结果不入队 | 含 `EXPR` 的地址请求必然 404 |

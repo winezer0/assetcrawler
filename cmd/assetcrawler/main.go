@@ -21,7 +21,6 @@ import (
 	"time"
 
 	"assetcrawler"
-	"assetcrawler/routegraph"
 )
 
 type multiFlag []string
@@ -58,7 +57,7 @@ func main() {
 		noJS      = flag.Bool("no-js", false, "disable JS/CSS endpoint extraction")
 		jsEngine  = flag.String("js-engine", "auto", "JS extraction engine: auto | regex | goja | treesitter")
 		noChunk   = flag.Bool("no-chunk-graph", false, "disable chunk/route graph recovery from bundles")
-		routeExec = flag.Bool("route-exec", false, "allow executing webpack chunks to recover routes (needs -tags routeexec; runs target code)")
+		routeExec = flag.Bool("route-exec", false, "allow executing webpack chunks to recover routes (runs target site JS; off by default)")
 		silent    = flag.Bool("silent", false, "only print URLs, no summary")
 		verbose   = flag.Bool("v", false, "print errors to stderr")
 		ua        = flag.String("ua", "", "custom User-Agent")
@@ -93,11 +92,6 @@ func main() {
 	opts.JSEngine = assetcrawler.JSEngine(*jsEngine)
 	opts.ExtractChunkGraph = !*noChunk
 	opts.RouteExec = *routeExec
-	if opts.RouteExec && !routegraph.ExecAvailable() {
-		fmt.Fprintln(os.Stderr, "错误：-route-exec 需要把执行兜底编入二进制，请用下面的命令重新构建：")
-		fmt.Fprintln(os.Stderr, "  go build -tags routeexec -o assetcrawler ./cmd/assetcrawler")
-		os.Exit(2)
-	}
 	opts.KnownFiles = known
 	if *ua != "" {
 		opts.UserAgent = *ua

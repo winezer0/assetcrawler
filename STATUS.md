@@ -1,7 +1,7 @@
 # 实施情况
 
-日期：2026-11-06 16:00
-代码：`fe81f73`，本地 ahead 3（未推送到 origin）
+日期：2026-11-06 18:55
+代码：本轮改动未推送，本地 ahead 4（未推送到 origin）
 所有数字均为本地实测，未验证的会明确标注。
 
 ---
@@ -10,12 +10,12 @@
 
 | 项 | 数值 |
 |---|---|
-| Go 代码 | 8295 行（其中测试 2391 行） |
+| Go 代码 | 8301 行（其中测试 2426 行） |
 | 包 | 8 个（含 2 个 JS 引擎实现、1 个独立工具包） |
-| 测试用例 | 76 个 |
+| 测试用例 | 77 个 |
 | 直接依赖 | 3 个（`dop251/goja`、`odvcencio/gotreesitter`、`golang.org/x/net`） |
-| 二进制（默认） | 15.22 MB |
-| 二进制（`-tags routeexec`） | 23.70 MB |
+| 二进制（默认，`-s -w`） | 23.70 MB |
+| 二进制（含调试符号） | 32.90 MB |
 
 ## 二、覆盖率
 
@@ -23,7 +23,7 @@
 |---|---:|---|
 | crawler（顶层编排） | 75.7% | 端到端 + 配额 + 引擎链 |
 | `extractor` | 83.8% | HTML / 头 / CSS / JSON / 表单参数 |
-| `routegraph` | 82.4% | 词法、chunk、路由表、截断 |
+| `routegraph` | 82.6% | 词法、chunk、路由表、截断、执行兜底 |
 | `jsext` | 81.2%（`-coverpkg` 82.1%） | 两个引擎的黑盒测试 |
 | `frontier` | 77.2% | 归一化、scope、去重 |
 | `fetcher` | 74.3% | 本轮从 0% 补到 74.3% |
@@ -41,7 +41,7 @@
 | `fetcher` | HTTP：连接池、限速、按 host 并发、重试、重定向链、body 截断 | 仅标准库 |
 | `extractor` | 纯函数提取：HTML / 响应头 / CSS / JSON / 表单 | 仅 `x/net` |
 | `frontier` | 归一化、scope 判定、去重 | 仅标准库 |
-| `routegraph` | 打包产物：chunk 文件名、前端路由表 | 仅标准库 |
+| `routegraph` | 打包产物：chunk 文件名、前端路由表、执行兜底 | 标准库 + goja（仅 `exec.go`） |
 | `jsext/{goja,treesitter}` | JS AST：拼接求值、方法、参数 | goja / gotreesitter |
 | `csp` | CSP / Report-To 响应头解析 | 仅标准库 |
 
@@ -57,6 +57,7 @@
 | `ca03237` | 参数不改写 URL、sitemap 降为 depth 1、fetcher 补 7 个用例 | 60 配额下 JS 0→10，fetcher 0→74.3% |
 | `c3493b8` | 修 data URI 片段引用、vite mapDeps 前缀、非 URL 字面量；固化两份现代站基线 | 404：vuejs 32→8，vite 11→3 |
 | `fe81f73` | 新增独立 `csp` 包（纯函数，不接入采集流程） | 覆盖率 86.3%，真实头夹具 |
+| 本轮 | 去掉 `routeexec` 构建标签：执行兜底默认编入，删 `exec_stub.go` 与 `ExecAvailable` | 二进制 15.22→23.70 MB，`go test -race` 全绿，routegraph 82.6% |
 
 ## 五、验收数据
 
@@ -117,5 +118,5 @@
 
 ## 八、仓库状态
 
-- 本地 `ahead 3`，**未推送**
+- 本地 `ahead 4`，**未推送**
 - 工作区干净，`go vet` / `gofmt` 无输出，`go test -race ./...` 全绿
