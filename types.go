@@ -141,7 +141,7 @@ func DefaultOptions() *Options {
 		FollowRobots:       true,
 		FollowSitemap:      true,
 		ExtractJS:          true,
-		JSEngine:           JSEngineRegex,
+		JSEngine:           JSEngineAuto,
 		ExtractFromStyle:   true,
 		ExtractJSON:        true,
 		ExtractChunkGraph:  true,
@@ -204,6 +204,6 @@ func (o *Options) extractorOptions() extractor.Options {
 	return extractor.Options{
 		ExtractJS:    o.ExtractJS,
 		ExtractStyle: o.ExtractFromStyle,
-		JSExtract:    adaptEngine(engineFunc(o.JSEngine)),
+		JSExtract:    adaptEngine(engineChain(o.JSEngine)),
 	}
 }

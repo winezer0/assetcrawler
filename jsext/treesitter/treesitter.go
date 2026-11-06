@@ -42,11 +42,12 @@ func Extract(src []byte) ([]jsext.Request, error) {
 	}
 	defer tree.Release()
 
-	e := &extractor{src: src, lang: lang, vars: map[string]string{}}
+	e := &extractor{src: src, lang: lang, vars: map[string]string{}, prefixVars: map[string]bool{}}
 	root := tree.RootNode()
 	e.collectConsts(root)
 	e.collectCalls(root)
 	e.collectBinaries(root)
+	e.collectPrefixVars(root)
 	e.collectLiterals(root)
 	e.collectComments(root)
 	e.collectImports(root)
@@ -57,7 +58,40 @@ type extractor struct {
 	src  []byte
 	lang *gotreesitter.Language
 	vars map[string]string
-	out  []jsext.Request
+	// prefixVars 记录被当作拼接前缀使用的变量，用于区分 base 常量与完整端点。
+	prefixVars map[string]bool
+	out        []jsext.Request
+}
+
+// collectPrefixVars 记录被用作拼接前缀的变量（与 goja 引擎同一判据）。
+func (e *extractor) collectPrefixVars(root *gotreesitter.Node) {
+	mark := func(n *gotreesitter.Node) {
+		if n != nil && n.Type(e.lang) == "identifier" {
+			e.prefixVars[n.Text(e.src)] = true
+		}
+	}
+	e.walk(root, func(n *gotreesitter.Node) {
+		switch n.Type(e.lang) {
+		case "binary_expression":
+			isPlus := false
+			for i := 0; i < n.ChildCount(); i++ {
+				if n.Child(i).Type(e.lang) == "+" {
+					isPlus = true
+					break
+				}
+			}
+			if !isPlus {
+				return
+			}
+			for _, c := range namedChildren(n) {
+				mark(c)
+			}
+		case "template_substitution":
+			for _, c := range namedChildren(n) {
+				mark(c)
+			}
+		}
+	})
 }
 
 // collectConsts 收集 `var X = "字面量"` 与 `const X = "字面量"`。
@@ -81,7 +115,9 @@ func (e *extractor) collectConsts(root *gotreesitter.Node) {
 // collectImports 提取静态 import 语句的模块路径（`import x from "./dep.mjs"`）。
 func (e *extractor) collectImports(root *gotreesitter.Node) {
 	e.walk(root, func(n *gotreesitter.Node) {
-		if n.Type(e.lang) != "import_statement" {
+		// export {x} from "./a.js" 同样携带模块路径，必须一起收：
+		// 这类再导出在代码分割产物里很常见，漏掉就少一批 chunk。
+		if t := n.Type(e.lang); t != "import_statement" && t != "export_statement" {
 			return
 		}
 		src := n.ChildByFieldName("source", e.lang)
@@ -455,8 +491,48 @@ func (e *extractor) collectLiterals(root *gotreesitter.Node) {
 			for _, c := range namedChildren(n) {
 				emit(c)
 			}
+		case "variable_declarator":
+			// 裸变量赋值：排除前缀型常量，且要求形状像端点（见 endpointShaped）。
+			name := n.ChildByFieldName("name", e.lang)
+			value := n.ChildByFieldName("value", e.lang)
+			if name == nil || value == nil || name.Type(e.lang) != "identifier" {
+				return
+			}
+			if e.prefixVars[name.Text(e.src)] {
+				return
+			}
+			if v, certain := e.eval(value); !certain || !endpointShaped(v) {
+				return
+			}
+			emit(value)
 		}
 	})
+}
+
+// endpointShaped 判断一个「裸变量赋值」是否更像完整端点而不是可拼接的前缀。
+//
+// 变量赋值是最模糊的一类载体：`var base="/api/v3"` 是前缀，
+// `var ep="/api/hidden/endpoint"` 是端点，两者都是「以 / 开头的字符串」。
+// 除了「是否参与 + 拼接」之外，再叠一层形状判断：
+//   - 绝对地址、带 query/fragment → 端点
+//   - 路径段数 >= 3              → 端点（/api/v3 这类前缀通常只有 1~2 段）
+//   - 末段含扩展名（.js/.json…）  → 端点
+func endpointShaped(s string) bool {
+	if strings.HasPrefix(s, "http://") || strings.HasPrefix(s, "https://") {
+		return true
+	}
+	if strings.ContainsAny(s, "?#") {
+		return true
+	}
+	trimmed := strings.Trim(s, "/")
+	if segs := strings.Count(trimmed, "/") + 1; segs >= 3 {
+		return true
+	}
+	last := trimmed
+	if i := strings.LastIndex(trimmed, "/"); i >= 0 {
+		last = trimmed[i+1:]
+	}
+	return strings.Contains(last, ".")
 }
 
 // standaloneURL 与 goja 引擎保持同一判定：必须能锚定到站点根或绝对地址。
@@ -547,6 +623,12 @@ func urlLike(s string) bool {
 	}
 	if strings.HasPrefix(s, "/") || strings.HasPrefix(s, "./") || strings.HasPrefix(s, "../") {
 		return len(s) > 1
+	}
+	// 无前导斜杠时要求含 "/" 或形如 a.b 的扩展名。
+	// 以 "." 开头的字符串一律不认：那是 CSS 选择器（`.blocks`）、
+	// 相对模块（已在上面的分支处理）或省略号，都不是地址。
+	if strings.HasPrefix(s, ".") {
+		return false
 	}
 	return strings.Contains(s, "/") || strings.Contains(s, ".")
 }

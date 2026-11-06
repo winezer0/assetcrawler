@@ -9,6 +9,7 @@
 package goja
 
 import (
+	"errors"
 	"reflect"
 	"regexp"
 	"strings"
@@ -34,37 +35,36 @@ var httpClients = map[string]bool{
 
 // Extract 解析 JS 源码并返回请求候选。解析失败时返回 error，由调用方决定是否回退正则。
 func Extract(src []byte) ([]jsext.Request, error) {
-	// 保留原始源码：ESM 预处理会把 import 语句整行删掉，
-	// 而静态 import 的模块路径恰恰只能从原文里取。
-	orig := src
-
 	f, err := parser.ParseFile(nil, "", src, 0)
 	if err != nil {
-		// goja 的 parser 不支持 ESM 语法。剥离 import/export 后再试一次：
-		// 这一步只影响语法形状，不改变字面量与拼接关系，因此不影响提取结果。
-		fixed, changed := StripModuleSyntax(src)
-		if !changed {
-			return nil, err
+		// goja 的 parser 不支持 ESM 语法（import/export/import.meta/顶层 await）。
+		//
+		// 早期实现是「剥掉 import/export 再解析一次」，但那条路会静默出错：
+		// `export default {a:"/x"}` 剥离后变成 `{a:"/x"}`，被当成代码块解析成功，
+		// 于是既不报错、也提取不到任何东西——自动兜底链完全不会触发。
+		// 因此这里明确拒绝，让上层（auto 链）交给 treesitter。
+		if looksLikeESM(src) {
+			return nil, ErrESMUnsupported
 		}
-		f, err = parser.ParseFile(nil, "", fixed, 0)
-		if err != nil {
-			return nil, err
-		}
-		src = fixed
+		return nil, err
 	}
-	e := &extractor{vars: map[string]string{}}
+	e := &extractor{vars: map[string]string{}, prefixVars: map[string]bool{}}
 	e.collectConsts(f)
+	e.collectPrefixVars(f)
 	e.collectCalls(f)
 	e.collectBinaries(f)
 	e.collectLiterals(f)
 	e.collectComments(src)
-	e.collectStaticImports(orig)
 	return jsext.Dedup(e.out), nil
 }
 
 type extractor struct {
 	vars map[string]string
-	out  []jsext.Request
+	// prefixVars 记录「被当作拼接前缀使用」的变量名。
+	// var api = "/api/v3" 若后续出现 api + "/x"，它就是前缀而不是端点；
+	// 反之 var ep = "/api/hidden/endpoint" 从未参与拼接，本身就是一个地址。
+	prefixVars map[string]bool
+	out        []jsext.Request
 }
 
 // collectConsts 收集 `var X = "字面量"`，供常量传播使用。
@@ -87,6 +87,61 @@ func (e *extractor) collectConsts(root ast.Node) {
 			}
 		}
 	})
+}
+
+// collectPrefixVars 记录被用作拼接前缀的变量。
+//
+// 判据是「出现在 + 的任一操作数位置，或出现在模板字符串的插值里」。
+// 这样 `var API="/api/v3"; fetch(API+"/users")` 中的 API 不会被当成端点，
+// 而 `var ep="/api/hidden/endpoint"`（从未参与拼接）会作为完整地址被收集。
+func (e *extractor) collectPrefixVars(root ast.Node) {
+	walk(root, func(n any) {
+		switch v := n.(type) {
+		case *ast.BinaryExpression:
+			if v.Operator != token.PLUS {
+				return
+			}
+			markIdent(e.prefixVars, v.Left)
+			markIdent(e.prefixVars, v.Right)
+		case *ast.TemplateLiteral:
+			for _, ex := range v.Expressions {
+				markIdent(e.prefixVars, ex)
+			}
+		}
+	})
+}
+
+// endpointShaped 判断一个「裸变量赋值」是否更像完整端点而不是可拼接的前缀。
+//
+// 变量赋值是最模糊的一类载体：`var base="/api/v3"` 是前缀，
+// `var ep="/api/hidden/endpoint"` 是端点，两者都是「以 / 开头的字符串」。
+// 除了「是否参与 + 拼接」之外，再叠一层形状判断：
+//   - 绝对地址、带 query/fragment → 端点
+//   - 路径段数 >= 3              → 端点（/api/v3 这类前缀通常只有 1~2 段）
+//   - 末段含扩展名（.js/.json…）  → 端点
+func endpointShaped(s string) bool {
+	if strings.HasPrefix(s, "http://") || strings.HasPrefix(s, "https://") {
+		return true
+	}
+	if strings.ContainsAny(s, "?#") {
+		return true
+	}
+	trimmed := strings.Trim(s, "/")
+	if segs := strings.Count(trimmed, "/") + 1; segs >= 3 {
+		return true
+	}
+	last := trimmed
+	if i := strings.LastIndex(trimmed, "/"); i >= 0 {
+		last = trimmed[i+1:]
+	}
+	return strings.Contains(last, ".")
+}
+
+// markIdent 把表达式里的标识符记进集合。
+func markIdent(set map[string]bool, x ast.Expression) {
+	if id, ok := x.(*ast.Identifier); ok {
+		set[id.Name.String()] = true
+	}
 }
 
 // collectCalls 从调用点提取 URL、方法、参数。这一类结果置信度更高，先入队。
@@ -264,6 +319,23 @@ func (e *extractor) collectLiterals(root ast.Node) {
 		case *ast.ArrayLiteral:
 			for _, el := range v.Value {
 				emit(el)
+			}
+		case *ast.VariableStatement:
+			// var/let/const 直接赋一个完整地址（而非前缀）时也要收：
+			// `var api = "/api/hidden/endpoint"` 只在正则时代能拿到，
+			// AST 独占结果后就会漏。用 prefixVars 排除前缀型常量。
+			for _, b := range v.List {
+				id, ok := b.Target.(*ast.Identifier)
+				if !ok || b.Initializer == nil {
+					continue
+				}
+				if e.prefixVars[id.Name.String()] {
+					continue
+				}
+				if v, certain := e.eval(b.Initializer); !certain || !endpointShaped(v) {
+					continue
+				}
+				emit(b.Initializer)
 			}
 		}
 	})
@@ -486,41 +558,15 @@ func keyName(x ast.Expression) string {
 // sourceMapRe 匹配 //# sourceMappingURL=app.js.map 这类注释。
 var sourceMapRe = regexp.MustCompile(`[#@]\s*sourceMappingURL=(\S+)`)
 
-var (
-	importFromRe  = regexp.MustCompile(`(?m)^\s*import\s+[^;\n]*?from\s*['"][^'"\n]+['"]\s*;?`)
-	importBareRe  = regexp.MustCompile(`(?m)^\s*import\s*['"][^'"\n]+['"]\s*;?`)
-	exportHeadRe  = regexp.MustCompile(`(?m)^\s*export\s+(?:default\s+)?`)
-	dynamicImport = regexp.MustCompile(`\bimport\s*\(`)
-)
+// esmMarkerRe 识别 ESM 专有语法，用于把「goja 不支持」与「源码本身有错」区分开。
+var esmMarkerRe = regexp.MustCompile(
+	`(?m)(?:^|\n)\s*(?:import\s*[\w{*'"]|export\s+(?:default|const|let|var|function|class|\{|\*))|\bimport\s*\(|\bimport\.meta|(?:^|\n)\s*await\s`)
 
-// StripModuleSyntax 去掉 goja 不认识的 ESM 语法，返回改写后的源码与是否发生改动。
-//
-// 处理三类：`import x from "y"`、`export ...`、`import(...)`（改名为 __import）。
-// 只删除声明与关键字，不动字符串字面量与运算符，因此后续求值结果不变。
-func StripModuleSyntax(src []byte) ([]byte, bool) {
-	orig := string(src)
-	out := importFromRe.ReplaceAllString(orig, "")
-	out = importBareRe.ReplaceAllString(out, "")
-	out = exportHeadRe.ReplaceAllString(out, "")
-	out = dynamicImport.ReplaceAllString(out, "__import(")
-	if out == orig {
-		return src, false
-	}
-	return []byte(out), true
-}
+// ErrESMUnsupported 表示源码含 ESM 语法，goja 的解析器无法处理。
+var ErrESMUnsupported = errors.New("goja 不支持 ESM 语法，请改用 treesitter 或 auto")
 
-// staticImportRe 匹配 `import x from "y"` / `import "y"` 的模块路径。
-var staticImportRe = regexp.MustCompile(`(?m)^\s*import\s+(?:[^;'"\n]*?from\s*)?['"]([^'"\n]+)['"]`)
-
-// collectStaticImports 提取静态 import 的模块路径。
-// 这一步必须针对原始源码做——StripModuleSyntax 已经把这些语句整行删掉了。
-func (e *extractor) collectStaticImports(src []byte) {
-	for _, m := range staticImportRe.FindAllSubmatch(src, -1) {
-		if raw := string(m[1]); urlLike(raw) {
-			e.out = append(e.out, jsext.Request{URL: raw, Confidence: jsext.Certain})
-		}
-	}
-}
+// looksLikeESM 判断源码是否含 ESM 专有语法。
+func looksLikeESM(src []byte) bool { return esmMarkerRe.Match(src) }
 
 // collectComments 提取注释里的 sourceMappingURL。
 func (e *extractor) collectComments(src []byte) {
@@ -545,7 +591,12 @@ func urlLike(s string) bool {
 	if strings.HasPrefix(s, "/") || strings.HasPrefix(s, "./") || strings.HasPrefix(s, "../") {
 		return len(s) > 1
 	}
-	// 无前导斜杠时要求含 "/" 或形如 a.b 的扩展名
+	// 无前导斜杠时要求含 "/" 或形如 a.b 的扩展名。
+	// 以 "." 开头的字符串一律不认：那是 CSS 选择器（`.blocks`）、
+	// 相对模块（已在上面的分支处理）或省略号，都不是地址。
+	if strings.HasPrefix(s, ".") {
+		return false
+	}
 	return strings.Contains(s, "/") || strings.Contains(s, ".")
 }
 

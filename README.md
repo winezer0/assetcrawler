@@ -95,8 +95,8 @@ SSI 的 `<!--#include virtual|file="x"-->`、Dreamweaver 的
 （也抓取，但调用方可据此过滤——SPA 的 `/admin/users` 在服务端往往只是同一个 index.html）。
 
 ```bash
-assetcrawler -u https://target/ -jsonl -js-engine goja   # 默认开启
-assetcrawler -u https://target/ -no-chunk-graph           # 关掉
+assetcrawler -u https://target/ -jsonl                # 默认开启
+assetcrawler -u https://target/ -no-chunk-graph       # 关掉
 ```
 
 **执行兜底（可选编译）**
@@ -113,6 +113,27 @@ assetcrawler -u https://target/ -route-exec
 限制很明确：只对自注册的 webpack chunk（`self.webpackChunkX.push(...)`）有效；
 ESM/Vite 产物完全不支持（goja 不认 `import`/`export`，连动态 `import()` 都报语法错误）；
 必须带超时（默认 2 秒），因为它在运行目标站的代码。
+
+**JS 引擎策略（`-js-engine`，默认 `auto`）**
+
+| 取值 | 行为 |
+|---|---|
+| `auto`（默认） | goja 快路径优先，解析失败自动落到 treesitter |
+| `goja` | 只用 goja；遇到 ESM 直接失败并回退正则 |
+| `treesitter` | 只用 treesitter，最全但慢约 1.8 倍 |
+| `regex` | 零依赖正则，最快，拿不到方法与参数 |
+
+为什么默认是 `auto` 而不是单引擎：
+
+- **goja 解析不了 ESM**（`import`/`export`/`import.meta`/顶层 `await`），
+  而 Vite 构建的站点入口 chunk 就是 ESM——实测 `vuejs.org` 与 `vite.dev` 的入口文件
+  让 goja 在第一个 token 就报错，整份文件会退化成正则。
+- **treesitter 全能但慢**：1MB 输入约 3.1s（goja 1.7s），且语法表让二进制多约 7.7MB。
+- 串联之后：常规脚本走快路径，ESM 走完整解析，两者都不牺牲。
+
+goja 遇到 ESM 时**显式报错**而不是「剥掉 import/export 再试」——后者会让
+`export default {a:"/x"}` 变成代码块解析成功，既不报错也提取不到内容，
+自动兜底链根本不会触发。详见 `ESM-ANALYSIS.md`。
 
 **入口补充**
 `robots.txt`（Sitemap 声明）、`sitemap.xml`（递归处理 sitemap index、支持 gzip）、
