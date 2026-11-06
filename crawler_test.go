@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 )
@@ -298,4 +299,89 @@ func keysOfResult(m map[string]Result) []string {
 		out = append(out, k)
 	}
 	return out
+}
+
+// TestSitemapDoesNotStarveAssets 锁定「sitemap 不能吃光配额」。
+//
+// 实测问题：vuejs.org 的 sitemap 有 59 条，以 depth 0 与种子页同层入队，
+// -max-urls 60 时配额被 sitemap 全部占满，种子页里的 <script src> 一条都没抓到，
+// 结果里 JS 数为 0，看起来像「这个站没有 JS」。
+//
+// 现在 sitemap 页面放 depth 1，且第 0 层结束后才并入，排在种子页提取出的资源之后。
+func TestSitemapDoesNotStarveAssets(t *testing.T) {
+	mux := http.NewServeMux()
+	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/html")
+		fmt.Fprint(w, `<html><body><script src="/app.js"></script></body></html>`)
+	})
+	mux.HandleFunc("/app.js", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/javascript")
+		fmt.Fprint(w, `fetch("/api/from-js");`)
+	})
+	mux.HandleFunc("/robots.txt", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/plain")
+		fmt.Fprint(w, "Sitemap: /sitemap.xml\n")
+	})
+	mux.HandleFunc("/sitemap.xml", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/xml")
+		var sb strings.Builder
+		sb.WriteString(`<?xml version="1.0"?><urlset>`)
+		for i := 0; i < 40; i++ {
+			fmt.Fprintf(&sb, `<url><loc>/page-%d</loc></url>`, i)
+		}
+		sb.WriteString(`</urlset>`)
+		fmt.Fprint(w, sb.String())
+	})
+	for i := 0; i < 40; i++ {
+		p := fmt.Sprintf("/page-%d", i)
+		mux.HandleFunc(p, func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Content-Type", "text/html")
+			fmt.Fprint(w, "<html><body>page</body></html>")
+		})
+	}
+
+	srv := httptest.NewServer(mux)
+	defer srv.Close()
+
+	opts := DefaultOptions()
+	opts.MaxDepth = 2
+	opts.MaxURLs = 16 // 远小于 sitemap 条目数（40）
+	opts.Concurrency = 2
+	opts.PerHostConcurrency = 2
+	opts.RateLimit = 0
+
+	c, err := New(opts)
+	if err != nil {
+		t.Fatalf("New: %v", err)
+	}
+	defer c.Close()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+	defer cancel()
+	results, err := c.Crawl(ctx, srv.URL+"/")
+	if err != nil {
+		t.Fatalf("Crawl: %v", err)
+	}
+
+	byURL := map[string]Result{}
+	for _, r := range results {
+		byURL[r.URL] = r
+	}
+
+	// 核心断言：脚本必须被抓到，且它是 JS 里发现的接口的跳板
+	if r, ok := byURL[srv.URL+"/app.js"]; !ok {
+		t.Fatalf("配额被 sitemap 吃光，/app.js 未被抓到；实际 %v", keysOfResult(byURL))
+	} else if r.StatusCode != 200 {
+		t.Errorf("/app.js 状态码 = %d，期望 200", r.StatusCode)
+	}
+	// 说明：这里不断言 js 内发现的 /api/from-js——
+	// 它在 depth 2，而配额 16 在 depth 1（40 条 sitemap）就已用尽。
+	// 本用例只验证「资源优先于 sitemap」，js 内提取由 TestCrawlEndToEnd 覆盖。
+
+	// sitemap 页面应当落在 depth 1
+	for u, r := range byURL {
+		if strings.Contains(u, "/page-") && r.Depth != 1 {
+			t.Errorf("sitemap 页面 %s 的 depth = %d，期望 1", u, r.Depth)
+		}
+	}
 }

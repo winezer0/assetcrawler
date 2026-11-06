@@ -87,8 +87,10 @@ func (c *Crawler) Crawl(ctx context.Context, seeds ...string) ([]Result, error) 
 		return nil, err
 	}
 
-	// robots.txt / sitemap.xml / 已知路径 作为 depth 0 的补充来源
-	current = append(current, c.bootstrap(ctx, current)...)
+	// robots.txt / sitemap.xml / 已知路径：sitemap 页面是 depth 1，
+	// 已知路径是 depth 0。这里不直接拼进 current，等第 0 层跑完再并入，
+	// 否则它们会和种子页同层，把配额吃光。
+	boot := c.bootstrap(ctx, current)
 
 	for depth := 0; len(current) > 0; depth++ {
 		if ctx.Err() != nil {
@@ -97,7 +99,15 @@ func (c *Crawler) Crawl(ctx context.Context, seeds ...string) ([]Result, error) 
 		if c.opts.MaxDepth > 0 && depth > c.opts.MaxDepth {
 			break
 		}
-		current = c.runLevel(ctx, current)
+		next := c.runLevel(ctx, current)
+
+		// 第 0 层结束后并入引导任务。顺序上把种子页提取出的资源排在前面：
+		// 配额紧张时优先抓 JS/CSS，而不是把额度全给 sitemap 里的页面。
+		if depth == 0 && len(boot) > 0 {
+			next = append(next, boot...)
+			boot = nil
+		}
+		current = next
 	}
 
 	c.mu.Lock()

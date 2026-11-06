@@ -1,8 +1,6 @@
 package assetcrawler
 
 import (
-	"strings"
-
 	"assetcrawler/extractor"
 	"assetcrawler/jsext"
 	"assetcrawler/jsext/goja"
@@ -74,8 +72,11 @@ func adaptEngine(chain []jsext.Engine) func(string) ([]extractor.Request, bool) 
 func toRequests(reqs []jsext.Request) []extractor.Request {
 	out := make([]extractor.Request, 0, len(reqs))
 	for _, r := range reqs {
-		// 参数名单独带出：query 参数同时补进 URL（便于按「带参接口」判读），
-		// body 参数只作为形状保留——POST 的字段拼到 query 上会改变语义。
+		// 参数名单独带出，绝不改写 URL。
+		//
+		// 早期实现会把参数名补成 `?page=&size=`，等于凭空造出一个源码里不存在的地址：
+		// 严格校验的接口会 400，分页接口可能把空值当第一页返回，结果与真实调用不一致。
+		// 参数名只放 Params，由调用方决定如何使用。
 		params := append([]string(nil), r.QueryParams...)
 		for _, b := range r.BodyParams {
 			dup := false
@@ -90,7 +91,7 @@ func toRequests(reqs []jsext.Request) []extractor.Request {
 			}
 		}
 		out = append(out, extractor.Request{
-			Raw:        withParams(r.URL, r.QueryParams),
+			Raw:        r.URL,
 			Method:     r.Method,
 			Source:     "js-ast",
 			Confidence: r.Confidence,
@@ -98,38 +99,4 @@ func toRequests(reqs []jsext.Request) []extractor.Request {
 		})
 	}
 	return out
-}
-
-// withParams 把只有参数名、没有值的 query 补到 URL 上。
-//
-// AST 能从 `$.get("/api/list", {page:1})` 拿到参数名 page，但拿不到它的取值；
-// 补成 `?page=` 是为了让下游把它当作「带参数的接口」保留下来，
-// 而不是丢成一个无参路径。已有同名参数时不重复追加。
-func withParams(raw string, params []string) string {
-	if len(params) == 0 {
-		return raw
-	}
-	query := ""
-	if i := strings.Index(raw, "?"); i >= 0 {
-		query = raw[i+1:]
-	}
-	var missing []string
-	for _, p := range params {
-		if p == "" || strings.Contains(query, p+"=") {
-			continue
-		}
-		missing = append(missing, p)
-	}
-	if len(missing) == 0 {
-		return raw
-	}
-	sep := "?"
-	if query != "" {
-		sep = "&"
-	}
-	var kv []string
-	for _, p := range missing {
-		kv = append(kv, p+"=")
-	}
-	return raw + sep + strings.Join(kv, "&")
 }

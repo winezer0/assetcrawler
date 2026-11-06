@@ -1,14 +1,14 @@
 # 现存问题清单
 
-整理日期：2026-11-06 10:12
-代码状态：`a3377c6`，本地 ahead 3（未推送）
+整理日期：2026-11-06 10:12；更新 12:50
+代码状态：P0-1 / P0-2 / P0-3 已修复（见各条状态）
 说明：所有结论均来自本地实测；每条给出证据、影响与修法，成本为代码量级估计。
 
 ---
 
 ## 一、正确性（会让结果「看起来对但实际错」）
 
-### P0-1 参数被写进 URL，产生源码里不存在的地址
+### P0-1 参数被写进 URL，产生源码里不存在的地址（✅ 已修复）
 
 **证据**：直接调用适配器实测
 
@@ -27,11 +27,10 @@ axios.post("/api/create",{name:"x",age:2})         →  /api/create（未改写�
 
 与我们「挖掘准确的 URL」的目标直接冲突。
 
-**修法**：抓取始终用原始 URL；参数名只放 `Params` 字段。
-需要展示「带参形态」时另设字段（如 `URLTemplate`），不参与抓取。
-成本：约 30 行，改动点集中在 `jsengine.go:withParams` 与调用处。
+**已修**：`adaptEngine` 直接用 `r.URL`，删除 `withParams`。参数名只放 `Params`。
+测试：`TestParamsDoNotRewriteURL`（断言 URL 不含 `?`，且 params 有两个名字）。
 
-### P0-2 sitemap 挤占抓取配额，资源类 URL 拿不到
+### P0-2 sitemap 挤占抓取配额，资源类 URL 拿不到（✅ 已修复）
 
 **证据**：`vuejs.org` 的 sitemap 有 59 条，全部以 `depth 0` 入队
 （`bootstrap.go:40` 固定 `depth: 0`），与种子页同层。
@@ -47,14 +46,19 @@ axios.post("/api/create",{name:"x",age:2})         →  /api/create（未改写�
 **影响**：sitemap 丰富的站点，在小配额下看不到任何静态资源与接口，
 而这恰恰是资产收集最关心的部分。用户会误以为「这个站没有 JS」。
 
-**修法**（需定策，三选一）：
-- sitemap 条目降为 `depth 1`，与资源同层竞争；
-- `MaxURLs` 只统计「非 sitemap 来源」的抓取；
-- 增加 `-no-sitemap`，或让 `FollowSitemap` 默认在配额足够时才开。
+**已修**：采用第一种——sitemap 页面放 `depth 1`，且引导任务在第 0 层跑完后才并入，
+排序上排在种子页提取出的资源之后（配额紧张时优先抓 JS/CSS）。
 
-成本：10~20 行，但要先确定语义。
+实测对比（`vuejs.org`，`-max-urls 60`）：
 
-### P0-3 `fetcher` 383 行零测试
+| | JS 文件 | 200 | sitemap 页面 |
+|---|---:|---:|---:|
+| 修复前 | **0** | 0 | 59 |
+| 修复后 | **10** | 10 | 8 |
+
+测试：`TestSitemapDoesNotStarveAssets`（40 条 sitemap + 配额 16，断言 `/app.js` 被抓到）。
+
+### P0-3 `fetcher` 383 行零测试（✅ 已修复）
 
 **证据**：`go test -cover ./fetcher/` → 无测试文件；`cmd/assetcrawler` 同样为零。
 
@@ -63,8 +67,20 @@ axios.post("/api/create",{name:"x",age:2})         →  /api/create（未改写�
 
 **影响**：限速或并发写错不会让测试变红，只会在真实站点上表现为「把目标打挂」或「莫名其妙超时」。
 
-**修法**：6 个用例（重定向计数、重试次数与退避、上限保护、限速精度、
-同 host 并发上限、body 截断）。成本：约 2 小时。
+**已修**：7 个用例，覆盖率 0% → **74.3%**：
+
+| 用例 | 断言 |
+|---|---|
+| `TestRedirectChain` | 两跳链、最终 URL、`Redirects` 两条都在 |
+| `TestRedirectLimit` | 上限生效、不死循环 |
+| `TestRetryOn5xx` | 5xx 重试到成功（请求 3 次）；404 不重试且不报错 |
+| `TestRateLimit` | QPS=5 时 10 请求 ≥ 0.8s |
+| `TestPerHostConcurrency` | 峰值并发不超过 `PerHostConcurrency` |
+| `TestBodyTruncation` | 超限时 `len(body)==limit` 且不报错 |
+| `TestContextCancel` | 取消能中断在途请求 |
+
+顺带确认了一个既有语义：**404 不返回错误**（状态码本身是证据），
+只有 5xx 重试耗尽才返回 `StatusError`。
 
 ---
 
@@ -192,12 +208,14 @@ flag 组合（`-no-js` / `-no-chunk-graph` / `-js-engine` 与 Options 的映射�
 
 ---
 
-## 建议处理顺序
+## 处理进度
 
-1. **P0-1** 参数不要写进 URL（30 行，直接关系结果可信度）
-2. **P0-2** sitemap 与配额（需先定语义，10~20 行）
-3. **P0-3** fetcher 单测（2 小时，保护后续所有改动）
-4. **P1-6** 固化一个现代站基线（否则无法验证 P1 系列改动）
-5. **P1-1 CSP** 优先，其余打包
-6. P1-2 / P1-3 / P1-4 视真实数据决定投入
-7. P2 系列随手清理
+| 顺序 | 项 | 状态 |
+|---|---|---|
+| 1 | P0-1 参数不要写进 URL | ✅ 2026-11-06 |
+| 2 | P0-2 sitemap 与配额 | ✅ 2026-11-06 |
+| 3 | P0-3 fetcher 单测 | ✅ 2026-11-06（覆盖率 74.3%） |
+| 4 | P1-6 固化现代站基线 | 待做（下一步） |
+| 5 | P1-1 CSP，其余打包 | 待做 |
+| 6 | P1-2 / P1-3 / P1-4 | 视真实数据决定 |
+| 7 | P2 系列 | 随手清理 |

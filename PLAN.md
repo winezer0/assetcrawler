@@ -285,7 +285,8 @@ AST 独有的 5 条真实接口，regex 完全拿不到：
 /api/v2/legacy/list   POST    ← $.ajax({url: BASE+"/legacy/list", type:"POST"})
 /api/v2/orders        POST    ← axios.post(url, {sku,qty})
 /api/v2/orders/EXPR           ← fetch(BASE+"/orders/"+id)
-/api/v2/users?page=&limit=    ← axios.get(url,{params:{page,limit}})
+/api/v2/users  params=[page limit]  ← axios.get(url,{params:{page,limit}})
+                              （参数名单独给，不改写 URL——见 ISSUES P0-1）
 ```
 
 方法识别：`XHR.open("DELETE", ...)` → DELETE、`$.ajax(type:"POST")` → POST、

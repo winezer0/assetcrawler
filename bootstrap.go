@@ -32,12 +32,16 @@ func (c *Crawler) bootstrap(ctx context.Context, seeds []task) []task {
 	}
 
 	var out []task
-	add := func(raw, source string) {
+	// add 把引导来源转成任务。depth 由调用方决定：
+	// sitemap 页面属于「从站点根再走一跳」，必须放 depth 1，
+	// 否则几十上百条 sitemap 会以 depth 0 占满整个抓取配额，
+	// 种子页里提取出的 JS/CSS 一条都轮不到。
+	add := func(raw, source string, depth int) {
 		u, added := c.frontier.Push(raw, nil)
 		if !added {
 			return
 		}
-		out = append(out, task{url: u, depth: 0, source: source, method: "GET"})
+		out = append(out, task{url: u, depth: depth, source: source, method: "GET"})
 	}
 
 	for _, k := range order {
@@ -56,7 +60,7 @@ func (c *Crawler) bootstrap(ctx context.Context, seeds []task) []task {
 			}
 			seen := make(map[string]struct{})
 			for _, sm := range sitemaps {
-				c.walkSitemap(ctx, sm, 0, seen, func(raw string) { add(raw, "sitemap") })
+				c.walkSitemap(ctx, sm, 0, seen, func(raw string) { add(raw, "sitemap", 1) })
 			}
 		}
 		for _, kf := range c.opts.KnownFiles {
@@ -64,7 +68,7 @@ func (c *Crawler) bootstrap(ctx context.Context, seeds []task) []task {
 			if kf == "" {
 				continue
 			}
-			add(origin.String()+"/"+strings.TrimPrefix(kf, "/"), "known-file")
+			add(origin.String()+"/"+strings.TrimPrefix(kf, "/"), "known-file", 0)
 		}
 	}
 	return out

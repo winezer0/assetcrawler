@@ -88,3 +88,26 @@ func TestVarLiteralNeedsEndpointShape(t *testing.T) {
 		}
 	}
 }
+
+// TestParamsDoNotRewriteURL 锁定「参数名不写进 URL」。
+//
+// 早期实现会把 axios 的 params 补成 `/api/list?page=&size=`，
+// 那是一个源码里不存在的地址，被抓取后可能 400 或返回第一页，
+// 与真实调用结果不一致。参数名只能放在 Params 里。
+func TestParamsDoNotRewriteURL(t *testing.T) {
+	fn := adaptEngine(engineChain(JSEngineAuto))
+	reqs, ok := fn(`axios.get("/api/list",{params:{page:1,size:20}});`)
+	if !ok || len(reqs) == 0 {
+		t.Fatal("未能提取")
+	}
+	r := reqs[0]
+	if strings.Contains(r.Raw, "?") {
+		t.Fatalf("URL 被改写成了 %q，期望保持 /api/list", r.Raw)
+	}
+	if r.Raw != "/api/list" {
+		t.Fatalf("URL = %q，期望 /api/list", r.Raw)
+	}
+	if len(r.Params) != 2 {
+		t.Fatalf("参数名应为 [page size]，实际 %v", r.Params)
+	}
+}
