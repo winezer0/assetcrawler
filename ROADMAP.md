@@ -1,187 +1,149 @@
-# 下一步任务规划
+# 增强路线（下一阶段）
 
-日期：2026-11-06
-基线：`5a54566`，已推送，工作区仅 `STATUS.md` 未提交
-
-## 现状摘要
-
-| 项 | 值 |
-|---|---|
-| 覆盖率 | crawler 71.3% / extractor 80.7% / frontier 77.2% / jsext 80.6% / routegraph 82.1% |
-| 零覆盖 | `fetcher`（383 行）、`cmd/assetcrawler` |
-| 二进制 | 默认 23.70 MB（含执行兜底，无构建标签） |
-| 探针 | 13/19 载体、方法 5/5、参数 3/3、噪音 0（**仅限 `-js-engine goja`**） |
-| 未覆盖载体 | og/twitter meta、data-*、CSP×2、sourcemap sources |
+日期：2026-11-06 19:45
+基线：`a569199`，二进制 23.70 MB，探针 13/19，77 个用例
+说明：本文件只列**还没做**的。已完成的项在 ISSUES 里带 ✅，不在这里重复；
+已定结论放最后一节，避免反复讨论。
 
 ---
 
-## P0：三件事，先做
+## 一、缺口总览
 
-### P0-1 默认引擎改为 auto（✅ 已完成 2026-11-06）
-
-原问题是默认值是 `regex`，AST 的全部收益在默认使用下拿不到（探针 11/19）。
-调研 ESM 后没有简单地「改成 goja」，而是做成 **goja → treesitter 串联**：
-
-| 配置 | 载体 | 方法 | 参数 | 噪音 |
-|---|---:|---:|---:|---:|
-| 原默认（regex） | 11/19 | 2/5 | 1/3 | 4 |
-| 现默认（auto） | **13/19** | **5/5** | **3/3** | **0** |
-
-原因见 `ESM-ANALYSIS.md`：Vite 站点入口 chunk 是 ESM，goja 100% 解析失败，
-而 treesitter 全能但慢。串联后两者都不牺牲。
-
-### P0-2 真实站点验证（✅ 部分完成 2026-11-06）
-
-**问题**：所有 SPA 验证都基于 `testdata/spa_fixture.py` / `vue_fixture.py` /
-`dynamic_fixture.py`，而这些夹具是**照着实现写的**。存在确认偏误：
-真实 webpack 产物里 `__webpack_require__.u` 有 webpack 4/5 两种形态、
-chunk 可能分散在多个 runtime、Vite 产物完全另一套（`__vitePreload` + `mapDeps`）。
-
-我们至今没在**真实的现代前端站点**上验证过 chunk/route 提取到底能不能命中。
-
-**动作**：
-1. 选三类目标各 2 个（公开、可礼貌爬取）：
-   - 现代 SPA 生产站（Vue/React + webpack5、Vite 各一）
-   - 传统服务端渲染站（ASP/PHP，已知 `testasp` 为基线）
-   - 静态文档站（`go.dev` 之类）
-2. 每个目标记录：chunk 还原命中率（构造出的文件名有多少返回 200）、
-   route 条数、参数条数、方法分布、耗时、噪音率（非 200 占比）
-3. 把真实形态与夹具的差异写成「夹具缺失清单」，回填到 `testdata/`
-
-**验收**：产出 `VALIDATION.md`，含每站点的命中率表格与差异清单；
-若 chunk 命中率低于 50%，优先修还原逻辑而不是继续加新功能。
-
-**成本**：半天（主要是挑选目标与限速爬取）。
-
-**已完成部分（2026-11-06）**：对 `vuejs.org` 实跑深度 2、300 配额，16 个 JS 全部 200，
-其中 9 个 `./chunks/*.js` 由 ESM 入口的 `export ... from` 还原。
-发现一个调度问题（见 P0-4）。
-
-### P0-3 `fetcher` 补单测（383 行零覆盖）
-
-**问题**：`fetcher` 承担重定向链、5xx 退避重试、QPS 限速、按 host 并发、
-body 截断、超时取消——全部靠端到端间接覆盖。改任何一处都没有回归保障。
-
-**要覆盖的六条**：
-1. 重定向链记录完整（含跨 host 时不带上 Authorization）
-2. 5xx 重试次数与退避间隔（用 httptest 计数验证实际请求次数）
-3. `MaxRedirects` 超限返回错误而非死循环
-4. 限速：`RateLimit=4` 时 8 个请求耗时落在合理区间
-5. 按 host 并发上限：慢响应下同 host 并发数不超过配置
-6. body 截断：超过 `MaxBodySize` 时只读上限字节且不报错
-
-**验收**：`fetcher` 覆盖率 ≥ 70%；`go test -race ./fetcher/` 通过。
-
-**成本**：2 小时。
-
-### P0-4 sitemap 挤占配额（新发现）
-
-`vuejs.org` 该站 sitemap 有 59 条，全部以 depth 0 入队。`-max-urls 60` 时
-**整份配额被 sitemap 吃光**，种子页 `<script src>` 提取出的 JS 一条都没轮到，
-结果里 JS 数为 0。
-
-同样是 60 配额，未加 body 提取前能拿到 60 条 sitemap 页面；加了之后什么都拿不到——
-配额语义从「页面数」变成了「含 sitemap 的全部 URL 数」。
-
-**可选修法**（需定策）：
-- sitemap 条目降级为 depth 1，与种子页提取出的资源同层竞争；
-- 或 `MaxURLs` 只统计「实际抓取」的数量，sitemap 线索不占额度；
-- 或加 `-no-sitemap` 开关，默认在大配额时才启用。
-
----
-
-## P1：召回补齐（合计约 120 行，探针从 13/19 → 19/19）
-
-| 项 | 价值 | 成本 | 说明 |
+| 维度 | 现状 | 缺口 | 批次 |
 |---|---|---|---|
-| **CSP / Report-To 响应头** | **高** | 30 行 | `connect-src` 常直接列出 API 域名（可能不同子域），`report-uri` 是现成端点。这是少数能发现**新域名**的载体 |
-| og / twitter meta | 中 | 25 行 | 现有 `meta` 只认 refresh。`og:url` 常指向分享页变体 |
-| `data-*` 泛化 | 中 | 20 行 | 现在只认 `data-src`。取所有 `data-*` 值里像路径的，需限流避免误报 |
-| sourcemap `sources` | 低 | 45 行 | 已会抓 `.map` 但不解析。`webpack://` 伪路径不可访问，只有相对路径有用，命中率预计偏低 |
+| 准确性 | 常量表是全局 map | 跨模块同名变量会产出**错误 URL**（实测 4 条错 2 条） | A |
+| 方法 | 探针 5/5，压缩产物可判 | `import {get as x}` 别名后方法全空 | A |
+| URL 召回 | 探针 13/19 | og/twitter meta、`data-*`、sourcemap `sources` | B |
+| 参数 | 只有名字，3/3 | 表单里静态可取的值完全没用 | C |
+| 深层页面 | 带 `:param` 路由只报告不抓 | SPA 内页拿不到，而那里 API 调用最集中 | C |
+| 工程 | CLI 0% 覆盖、无 CI | 每次改动靠手工验证 | D |
 
-顺序：CSP 先做（唯一能扩域名的），其余打包做。
-
-**验收**：`check.py` 19/19、`expected.json` 全部 `implemented: true`；基线无回退。
+判断依据：批次 A 是**正确性**问题（错 URL 比漏 URL 更贵，会吃掉抓取配额）；
+B 是可验证的召回补齐；C 收益不确定、噪音风险高，必须带开关；D 是让后续改动不再靠人肉。
 
 ---
 
-## P2：参数深化（对「有参数」目标的直接投入）
+## 二、批次 A：正确性（约 90 行，无新增依赖）
 
-当前 `params` 只有名字没有值——真实值要么客户端生成、要么需交互。
-但**表单里其实有一批静态可取的值**：
+### A-1 常量表按作用域隔离
 
-### P2-1 表单参数值枚举
+- **问题**：`jsext/treesitter` 的 `extractor.vars` 是全局 `map[string]string`，
+  `collectConsts` 后写覆盖先写。多个模块各自 `const n=...` 时会互相污染，
+  产出源码里不存在的地址（ISSUES P0-4，证据见 `ESBUILD-ANALYSIS.md` 第四节）。
+- **做法**：`vars` 改为 `map[scopeID]map[string]string`，`scopeID` 取最近的
+  `function_declaration / function_expression / arrow_function / method_definition / program`
+  的起始字节；`eval` 时从调用点所在作用域逐层向上查找（`gotreesitter.Node.Parent()` 可用）。
+- **验收**：
+  - 新增夹具（三个 IIFE 各自声明 `n`）：4/4 全部正确（现状 2/4）
+  - 现有 77 个用例全绿，`testasp-2026-11-06b` 基线 106 条不变
+  - 549 KB 的 webpack 包解析耗时不出现明显退化（27 KB 文件改动前 16.6 ms，作参考）
+- **风险**：`Parent()` 逐层向上可能带来开销；先用真实大文件实测，再决定是否缓存 scope 链。
+
+### A-2 import 别名映射到 HTTP 方法
+
+- **问题**：`import { get as fetchIt } from "axios"; fetchIt("/api/x")` —— URL 拿得到，
+  `method` 为空（ISSUES P1-8）。
+- **做法**：`collectImports` 时顺带建 `本地名 → (模块, 原名)` 映射，
+  `calleeOf` 判定方法前先查表；`import request from "@/utils/request"` 这类默认导入
+  只能确定「是包装过的请求库」，方法仍留空，不做猜测。
+- **验收**：别名夹具中 `fetchIt` / `sendIt` 分别判出 GET / POST（现状为空）。
+- **说明**：这条只影响未压缩 ESM；压缩产物已退化成 `(0,n.get)`，靠动词判定本来就能命中。
+
+---
+
+## 三、批次 B：召回补齐（约 90 行，探针 13 → 17）
+
+| 项 | 做法 | 成本 | 备注 |
+|---|---|---|---|
+| B-1 og / twitter meta | 现有 `meta` 只认 `refresh`，补 `property=og:url`、`name=twitter:image` | 25 行 | 分享页变体，命中率中等 |
+| B-2 `data-*` 泛化 | 现在只认 `data-src`，改为取所有 `data-*` 值中形状像路径的 | 20 行 | 需限流 + 形状判定，否则误报 |
+| B-3 sourcemap `sources` | 已会抓 `.map` 但不解析；只取相对路径（`webpack://` 伪路径不可访问） | 45 行 | 命中率预计偏低，放最后 |
+
+- **验收**：`check.py` **17/19**；CSP 两项**保持不接入**（见第七节），不追求 19/19。
+  `expected.json` 的 `implemented` 字段同步更新；三份基线无回退。
+- **注意**：`implemented` 与实际不一致时 `check.py` 会打印「记录与实际不符」，
+  改完必须同步，否则下次跑会误判。
+
+---
+
+## 四、批次 C：参数与深层页面（约 120 行，全部带开关）
+
+### C-1 表单参数值枚举（保守版）
 
 ```html
-<select name="sort"><option value="price_asc">...</option><option value="newest">...</option></select>
-<input type="radio" name="type" value="sale">
+<select name="sort"><option value="price_asc">…</option><option value="newest">…</option></select>
 <input type="hidden" name="cat" value="12">
 ```
 
-`hidden` 的 `value` 是确定的默认值，`select`/`radio` 的候选值集合很小。
-可以产出「带候选值的参数形状」，或按开关生成具体 URL（如 `/list?sort=newest&cat=12`）。
+输出 `sort=price_asc|newest`、`cat=12` 这样的候选值，**不生成 URL**。
+零额外请求、零误报，人工判读时直接可用。激进版（按值合成 URL 入队）单独做开关，先不实现。
 
-**必须先定策略**，两种取向：
-- **保守（推荐）**：只输出 `params` 里带候选值（`sort=price_asc|newest`），不生成 URL。
-  零额外请求、零误报，人工判读时直接可用。
-- **激进**：对 `hidden` 的确定值直接合成 URL 入队。多抓一批真实页面，但可能撞上
-  需要会话的路径，产生大量 302。
+### C-2 路由实例化 `-route-expand`
 
-建议先做保守版，把激进版做成 `-param-expand` 开关单独验证。
+`/user/:id` 现在 `kind=route`、`status=0`，不发起请求。加开关后用占位值（`/user/1`）试抓，
+必须带条数上限与去重；默认关闭。
 
-**成本**：保守版 60 行；激进版再加 50 行。
+### C-3 配置对象里的 base 地址
 
-### P2-2 分页有限推进
+`window.__ENV__={VUE_APP_API:"/api/v3", STATIC:"/static/"}` 的属性值没有走
+「前缀 / 端点」形状判定，会贡献 1~3 条 404（ISSUES P1-2）。
+修法是把 `endpointShaped` 也用于对象属性值，但要先定规则避免误伤
+`{plain:"/api/in-js-file"}`——建议只排除以 `/` 结尾的、以及段数 ≤ 2 且无扩展名的。
 
-JSON 的 `next` 已能拿到（P0-3 完成）。剩下的是 `?page=N` 的有限推进：
-需开关 + 上限（例如最多 5 页），且只在 `page`/`p`/`offset` 参数存在时启用。
-**风险**：容易把目标压垮，也可能陷入无限翻页。必须带页数上限与「内容重复即停」判定。
-
-**建议**：放最后，先看 P0-2 的真实站点数据里分页到底占多少召回。
+- **验收**：`vue_fixture` 输出的 404 从 2 条降到 0；探针噪音仍为 0。
+- **前置**：C 批次三项都缺真实样本的量级判断（噪音率未知），
+  建议先用 3~5 个真实站点各跑一次，再决定开关默认值。
 
 ---
 
-## P3：工程收敛
+## 五、批次 D：工程
 
-### ~~P3-1 双引擎去留~~（❌ 撤回）
+| 项 | 做法 | 说明 |
+|---|---|---|
+| D-1 CLI 测试 | 把 `flag → Options` 的映射做成表驱动用例 | 现在 0% 覆盖，新加 flag 没有任何保护 |
+| D-2 CI | `gofmt -l`、`go vet`、`go test -race`、`-s -w` 构建、`check.py` | 目前全靠手工 |
+| D-3 大站内存上限 | `seen` / `results` 加上限与溢出策略 | 10 万 URL 规模未测，不急 |
 
-原判断「treesitter 只剩原生 ESM 解析，可移除省 8MB」是错的，实测推翻了它：
-
-- goja 在 12 个 ESM 用例中 6 个解析失败；两个真实 Vite 站点入口 chunk **100% 失败**。
-- treesitter 还提供**截断容错**：2MB body 上限下大 bundle 必被切断，
-  goja 全有或全无，treesitter 能提取已下载部分（截断 49% 时仍拿到 102 条）。
-
-所以 treesitter 不能移除。要减体积的正确方向是「只编 JS 语法的裁剪构建」，
-不是删掉它。详见 `ESM-ANALYSIS.md`。
-
-### P3-2 CI
-
-GitHub Actions：`gofmt -l`、`go vet`、`go test -race`、`-s -w` 发布构建、
-探针夹具（起 Python 桩站跑 `check.py`）。目前所有验证都是手工跑的，容易漏。
-
-### P3-3 大站点内存
-
-`seen` 与 `results` 常驻内存。10 万 URL 时 `seen` 约几十 MB，
-`results` 若带 body 摘要会更大。目前没炸，但缺一个上限与溢出策略（可选落盘）。
+D-1 建议排在 C 之前：C 会新增 flag，没有测试兜底等于裸奔。
 
 ---
 
-## 明确不做（已定边界，不再讨论）
+## 六、待评估（不是承诺）
 
-- 敏感信息提取、目录 fuzz、漏洞检测、指纹识别
-- 执行 JS 渲染 DOM（执行兜底只跑 webpack chunk 取路由，不渲染）
-- CSV/HTML 报告导出（返回 `Result`，序列化交给调用方）
+- **treesitter 裁剪构建**：只编 JS 语法。`gotreesitter` 有 `grammar_subset` 机制，
+  但实测 JS 语法 blob 只有 40 KB、整个包符号 4.09 MB，**大头在运行时不在语法表**，
+  收益可能远小于预期。要先测再决定，别再重蹈「删 treesitter 省 8MB」的误判。
+- **参数激进版**、**分页推进**：都会把目标压得更狠，需要先有噪音率数据。
+- **TS / JSX 源码解析**：现在采集对象是浏览器实际加载的 JS，不涉及。
+  若将来要分析 sourcemap 反解出的 `.ts`，才需要重新考虑 esbuild（见 `ESBUILD-ANALYSIS.md`）。
 
 ---
 
-## 建议执行顺序
+## 七、已定结论（不再讨论）
+
+| 结论 | 依据 |
+|---|---|
+| treesitter 必须保留 | ESM 解析 + 截断容错；删了会让 Vite 站点入口 100% 失败（`ESM-ANALYSIS.md`） |
+| 不接入 esbuild | 真实产物零增量，优势可本地覆盖（`ESBUILD-ANALYSIS.md`） |
+| CSP 只做独立工具包 | 同站比例低、第三方噪音高（MDN 48 个主机仅 3 个同站） |
+| 执行兜底不做成可选编译 | 能力与二进制必须唯一对应；已默认编入，运行时由 `-route-exec` 控制 |
+| 不做敏感信息提取、目录 fuzz、漏洞检测、指纹识别、JS 渲染 DOM | 已定边界 |
+
+---
+
+## 八、执行顺序
 
 ```
-P0-1 默认引擎（5 分钟）→ 立刻让默认体验追上已实现的能力
-P0-2 真实站点验证（半天）→ 用真实数据校正后续优先级
-P0-3 fetcher 单测（2 小时）→ 为后面的改动兜底
-P1   CSP 等四项（半天）→ 探针补满
-P2-1 参数值枚举·保守版（2 小时）
-P3-1 移除 treesitter（前置：P0-2 验证 ESM）→ 体积减半
-P2-2 分页 / P3-2 CI / P3-3 内存 → 视真实数据再定
+A-2 import 别名（30 行，独立、低风险，先磨刀）
+A-1 作用域化（60 行，修正确性，动核心数据结构，需完整回归）
+B-1 + B-2（45 行，探针 13 → 15，一起做省一次回归）
+B-3 sourcemap（45 行，独做，命中率待验证）
+D-1 CLI 测试（在加新 flag 之前把网兜上）
+C-3 配置对象 base（20 行，先把已知的 404 修掉）
+C-1 参数值保守版（60 行）
+C-2 路由实例化（40 行，风险最高，放最后）
+D-2 CI → D-3 内存上限
 ```
+
+每批完成后的固定动作：`gofmt -l` / `go vet` / `go test -race` / `check.py` /
+三份基线对比（现代站比 `urls-stable.txt`，否则每次部署都会被判成几十条增删）。

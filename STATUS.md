@@ -115,7 +115,8 @@
 | 大站点内存上限 | `seen` / `results` 常驻，10 万 URL 规模未测 |
 | 接入 esbuild | 评估完成：真实产物零增量，优势可本地覆盖（`ESBUILD-ANALYSIS.md`） |
 
-以上都在 `ISSUES.md` 里按 P0/P1/P2 分级，并标了证据与修法成本。
+以上都在 `ISSUES.md` 里按 P0/P1/P2 分级，并标了证据与修法成本；
+下一步排期见 `ROADMAP.md`（批次 A 正确性 / B 召回 / C 参数 / D 工程）。
 
 ## 八、仓库状态
 
