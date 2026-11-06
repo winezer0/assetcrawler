@@ -86,7 +86,7 @@ axios.post("/api/create",{name:"x",age:2})         →  /api/create（未改写�
 
 ## 二、召回与准确（能力缺口）
 
-### P1-1 六类 URL 载体未覆盖
+### P1-1 六类 URL 载体未覆盖（CSP 部分已实现为独立包）
 
 探针 13/19，剩余 6 项：
 
@@ -100,7 +100,22 @@ axios.post("/api/create",{name:"x",age:2})         →  /api/create（未改写�
 | sourcemap `sources` | `/src/api/order.js` |
 
 其中 **CSP 是唯一能发现新域名的载体**（`connect-src` 常直接列出 API 域名），
-价值明显高于其余四项。合计成本约 120 行。
+价值明显高于其余四项。
+
+**CSP 已实现（2026-11-06）**：独立的 `csp` 包，纯函数，不被采集流程调用。
+实测增量与噪音：
+
+| 站点 | 来源主机 | 同站 | 上报端点 |
+|---|---:|---:|---:|
+| developer.mozilla.org | 48 | 3 | 0 |
+| cloudflare.com | 60 | 1 | 1（NEL） |
+| vuejs.org | 6 | 2 | 0 |
+| vite.dev / github.com | 无 CSP | — | — |
+
+结论：域名部分同站比例低、第三方噪音高，**只作为工具函数供调用方按范围策略使用**；
+上报端点是稳定增量。因此本项不再计入「采集流程应自动覆盖」的缺口。
+
+剩余未覆盖：og/twitter meta、`data-*`、sourcemap `sources`。
 
 ### P1-2 配置对象里的 base 地址变成 404
 
