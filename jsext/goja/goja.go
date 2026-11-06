@@ -69,22 +69,28 @@ type extractor struct {
 
 // collectConsts 收集 `var X = "字面量"`，供常量传播使用。
 func (e *extractor) collectConsts(root ast.Node) {
-	walk(root, func(n any) {
-		vs, ok := n.(*ast.VariableStatement)
-		if !ok {
-			return
-		}
-		for _, b := range vs.List {
+	record := func(list []*ast.Binding) {
+		for _, b := range list {
 			id, ok := b.Target.(*ast.Identifier)
 			if !ok || b.Initializer == nil {
 				continue
 			}
-			// 不只看纯字面量：`var u = c + "/orders"` 也是可静态确定的，
-			// webpack 压缩后的产物里这种派生常量非常常见。
-			// 因为按源码顺序遍历，被引用的常量此时已经入表。
+			// 不只看纯字面量：`const u = c + "/orders"` 同样可静态确定。
+			// 按源码顺序遍历，被引用的常量此时已经入表。
 			if v, certain := e.eval(b.Initializer); certain && v != "" {
 				e.vars[id.Name.String()] = v
 			}
+		}
+	}
+	walk(root, func(n any) {
+		// goja 把 `var` 与 `const`/`let` 分成两种 AST 节点。
+		// 只处理 VariableStatement 会让 const 常量完全无法传播——
+		// 现代前端代码几乎只用 const，那等于传播能力整体失效。
+		switch v := n.(type) {
+		case *ast.VariableStatement:
+			record(v.List)
+		case *ast.LexicalDeclaration:
+			record(v.List)
 		}
 	})
 }
@@ -300,6 +306,24 @@ func (e *extractor) collectLiterals(root ast.Node) {
 		}
 		e.out = append(e.out, jsext.Request{URL: v, Confidence: jsext.Certain})
 	}
+	// emitBare 处理 var/let/const 直接赋一个完整地址（而非前缀）的情况：
+	// `var api = "/api/hidden/endpoint"` 只在正则时代能拿到，
+	// AST 独占结果后就会漏。用 prefixVars 排除前缀型常量。
+	emitBare := func(list []*ast.Binding) {
+		for _, b := range list {
+			id, ok := b.Target.(*ast.Identifier)
+			if !ok || b.Initializer == nil {
+				continue
+			}
+			if e.prefixVars[id.Name.String()] {
+				continue
+			}
+			if v, certain := e.eval(b.Initializer); !certain || !endpointShaped(v) {
+				continue
+			}
+			emit(b.Initializer)
+		}
+	}
 	walk(root, func(n any) {
 		switch v := n.(type) {
 		case *ast.AssignExpression:
@@ -321,22 +345,9 @@ func (e *extractor) collectLiterals(root ast.Node) {
 				emit(el)
 			}
 		case *ast.VariableStatement:
-			// var/let/const 直接赋一个完整地址（而非前缀）时也要收：
-			// `var api = "/api/hidden/endpoint"` 只在正则时代能拿到，
-			// AST 独占结果后就会漏。用 prefixVars 排除前缀型常量。
-			for _, b := range v.List {
-				id, ok := b.Target.(*ast.Identifier)
-				if !ok || b.Initializer == nil {
-					continue
-				}
-				if e.prefixVars[id.Name.String()] {
-					continue
-				}
-				if v, certain := e.eval(b.Initializer); !certain || !endpointShaped(v) {
-					continue
-				}
-				emit(b.Initializer)
-			}
+			emitBare(v.List)
+		case *ast.LexicalDeclaration:
+			emitBare(v.List)
 		}
 	})
 }

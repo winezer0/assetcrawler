@@ -160,3 +160,40 @@ var d="/*";fetch("/api/real");`)
 		}
 	}
 }
+
+// TestConstLetPropagation 锁定 const/let 的常量传播。
+//
+// goja 把 `var` 与 `const`/`let` 分成两种 AST 节点（VariableStatement /
+// LexicalDeclaration）。早期只处理了前者，导致现代代码里最常见的
+// `const BASE = "/api/v3"` 完全无法传播，拼接结果退化成 EXPR/orders。
+// 这个 bug 在夹具里没暴露，因为夹具写的是 `var`。
+func TestConstLetPropagation(t *testing.T) {
+	cases := []string{
+		`var BASE="/api/v3"; axios.post(BASE+"/orders");`,
+		`const BASE="/api/v3"; axios.post(BASE+"/orders");`,
+		`let BASE="/api/v3"; axios.post(BASE+"/orders");`,
+		`const BASE="/api/v3"; const U=BASE+"/orders"; fetch(U);`,
+	}
+	for name, fn := range map[string]jsext.Engine{"goja": goja.Extract, "treesitter": treesitter.Extract} {
+		for _, src := range cases {
+			reqs, err := fn([]byte(src))
+			if err != nil {
+				t.Errorf("%s: %q 解析失败: %v", name, src, err)
+				continue
+			}
+			found := false
+			for _, r := range reqs {
+				if r.URL == "/api/v3/orders" {
+					found = true
+				}
+			}
+			if !found {
+				var got []string
+				for _, r := range reqs {
+					got = append(got, r.URL)
+				}
+				t.Errorf("%s: %q 未还原出 /api/v3/orders，实际 %v", name, src, got)
+			}
+		}
+	}
+}
