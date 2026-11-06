@@ -65,12 +65,12 @@
     {
       "url": "/csp-report-endpoint",
       "via": "CSP 响应头 report-uri",
-      "implemented": false
+      "implemented": true
     },
     {
       "url": "https://api.internal.example.com",
       "via": "CSP connect-src",
-      "implemented": false
+      "implemented": true
     },
     {
       "url": "/css-file/bg.jpg",

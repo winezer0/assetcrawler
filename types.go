@@ -118,6 +118,13 @@ type Options struct {
 	// MaxRouteExpand 单次采集最多展开多少条路由，默认 50。
 	MaxRouteExpand int
 
+	// CSPHints 是否把 CSP 响应头里的允许来源与上报端点作为线索输出，默认开启。
+	//
+	// 线索只报告不入队：`csp-source` 多为域名根路径，抓取价值低；
+	// `csp-report` 常带一次性 token，抓取等于向目标注入数据。
+	// 关掉用 `-no-csp`。
+	CSPHints bool
+
 	// MaxSeen 已见集合的条数上限，默认 200000，0 表示不限制。
 	//
 	// 已见集合常驻内存且不会缩小，是超大站点上唯一没有上限的增长点。
@@ -170,6 +177,7 @@ func DefaultOptions() *Options {
 		RouteExpand:        false,
 		MaxRouteExpand:     50,
 		MaxSeen:            200000,
+		CSPHints:           true,
 		Retries:            1,
 		MaxRedirects:       5,
 	}

@@ -225,6 +225,11 @@ func (c *Crawler) processOne(ctx context.Context, t task) []task {
 		return nil
 	}
 	reqs, base := c.extractAll(res)
+	// CSP 线索只报告不入队：它是「目标信任哪些域名」的清单，
+	// 抓取价值低（多为域名根，实测 5 个样本只 1 个 200）而信息价值高。
+	if c.opts.CSPHints {
+		c.emitCSPHints(res.Header, base, t.depth, res.URL.String())
+	}
 	return c.toTasks(reqs, base, nextDepth, res.URL.String())
 }
 

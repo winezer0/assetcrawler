@@ -82,6 +82,7 @@ func parseArgs(args []string, errOut io.Writer) (*cliConfig, error) {
 		routeExpand = fs.Bool("route-expand", false, "expand :param routes with placeholders and fetch them (capped by -route-expand-max)")
 		routeMax    = fs.Int("route-expand-max", 50, "max routes to expand when -route-expand is on")
 		maxSeen     = fs.Int("max-seen", 200000, "cap on the in-memory seen set (0 = unlimited)")
+		noCSP       = fs.Bool("no-csp", false, "do not report CSP allow-list hosts and report endpoints")
 		silent      = fs.Bool("silent", false, "only print URLs, no summary")
 		verbose     = fs.Bool("v", false, "print errors to stderr")
 		ua          = fs.String("ua", "", "custom User-Agent")
@@ -119,6 +120,7 @@ func parseArgs(args []string, errOut io.Writer) (*cliConfig, error) {
 	opts.RouteExpand = *routeExpand
 	opts.MaxRouteExpand = *routeMax
 	opts.MaxSeen = *maxSeen
+	opts.CSPHints = !*noCSP
 	opts.KnownFiles = known
 	if *ua != "" {
 		opts.UserAgent = *ua

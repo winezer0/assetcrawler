@@ -28,7 +28,7 @@ assetcrawler/      编排层：种子、BFS 调度、结果组装
 ├── frontier/    归一化 + 范围判定 + 去重
 ├── routegraph/  打包产物恢复：chunk 文件名 + 前端路由表（自带的 JS 词法分析器）
 ├── jsext/       JS AST 提取引擎：统一契约 + goja / gotreesitter 两套实现
-└── csp/         CSP / Report-To 响应头解析：纯函数工具包，不被采集流程依赖
+└── csp/         CSP / Report-To 响应头解析：纯函数工具包，由编排层调用
 ```
 
 依赖单向，子包之间没有横向依赖（jsext 的两个实现只依赖 jsext 契约，
@@ -130,7 +130,7 @@ assetcrawler -u https://target/ -route-exec
 ESM/Vite 产物完全不支持（goja 不认 `import`/`export`，连动态 `import()` 都报语法错误）；
 必须带超时（默认 2 秒），因为它在运行目标站的代码。
 
-**CSP 响应头（独立工具包，按需调用）**
+**CSP 响应头（输出线索，不入队）**
 
 `csp` 包解析 `Content-Security-Policy` / `CSP-Report-Only` / `Report-To` /
 `Reporting-Endpoints`，给出「页面 HTML 与 JS 里未必出现」的基础设施线索：
