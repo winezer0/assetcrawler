@@ -200,6 +200,9 @@ for (var x = 0; x < __exportedRoutes.length; x++) {
 JSON.stringify({ routes: __out, chunkIds: __chunkIds });
 `
 
+// ExecAvailable 表示当前二进制是否编入了执行兜底。
+func ExecAvailable() bool { return true }
+
 // ExtractByExec 执行一段 webpack chunk，从其模块导出里恢复路由与懒加载 chunk id。
 //
 // 安全性：会运行目标站的 JS。默认超时 2 秒、体积上限 2MB，

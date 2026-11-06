@@ -26,6 +26,15 @@ func LooksLikeHTML(contentType string, body []byte) bool {
 	return strings.Contains(s, "<html") || strings.Contains(s, "<!doctype html")
 }
 
+// LooksLikeJSON 判断响应是否为 JSON。
+func LooksLikeJSON(contentType, path string) bool {
+	ct := strings.ToLower(contentType)
+	if strings.Contains(ct, "json") {
+		return true
+	}
+	return strings.HasSuffix(strings.ToLower(path), ".json")
+}
+
 // LooksLikeCSS 判断响应是否为样式表。CSS 需要专用解析，不能走 JS 分支。
 func LooksLikeCSS(contentType, path string) bool {
 	if strings.Contains(strings.ToLower(contentType), "text/css") {

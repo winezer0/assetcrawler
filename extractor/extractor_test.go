@@ -321,3 +321,50 @@ func TestFromComments(t *testing.T) {
 		}
 	}
 }
+
+// TestFormParams 验证表单控件名被当作「参数形状」收集。
+//
+// 在这之前只拿到一个光秃秃的 action：一个后台登录页能给出
+// username / password / captcha 三个高价值参数名，全丢了。
+func TestFormParams(t *testing.T) {
+	const body = `<html><body>
+<form action="/search" method="get">
+  <input name="q"><input name="page"><select name="sort"></select>
+  <input type="submit" name="go" value="1">
+  <input name="off" disabled>
+  <button name="btn" type="button"></button>
+  <input type="hidden" name="token">
+</form>
+<form action="/login" method="post"><input name="username"><input name="password"></form>
+</body></html>`
+
+	doc := parseHTML(t, body)
+	var search, login *Request
+	for i, r := range FromHTML(doc, DefaultOptions()) {
+		switch r.Raw {
+		case "/search":
+			search = &FromHTML(doc, DefaultOptions())[i]
+		case "/login":
+			login = &FromHTML(doc, DefaultOptions())[i]
+		}
+	}
+	if search == nil || login == nil {
+		t.Fatalf("未找到表单 action: search=%v login=%v", search, login)
+	}
+
+	wantSearch := []string{"q", "page", "sort", "token"}
+	for _, w := range wantSearch {
+		if !contains(search.Params, w) {
+			t.Errorf("/search 缺少参数 %q，实际 %v", w, search.Params)
+		}
+	}
+	// 按钮类控件不产生参数
+	for _, bad := range []string{"go", "off", "btn"} {
+		if contains(search.Params, bad) {
+			t.Errorf("/search 不应包含 %q，实际 %v", bad, search.Params)
+		}
+	}
+	if !contains(login.Params, "username") || !contains(login.Params, "password") {
+		t.Errorf("/login 参数 = %v，期望含 username/password", login.Params)
+	}
+}

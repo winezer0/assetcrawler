@@ -13,7 +13,7 @@
 package routegraph
 
 // Kind 是词法单元的类型。
-type Kind int
+type Kind uint8
 
 const (
 	// TokEOF 表示输入结束。
@@ -34,21 +34,43 @@ const (
 	TokRegex
 )
 
-// Token 是一个词法单元。ValStart/ValEnd 是去掉引号后的内容区间，
-// 对非字面量类型与 Start/End 相同。
+// Token 是一个词法单元。
+//
+// 刻意压缩到 12 字节：一个 1MB 的压缩包能产出约 50 万 token，
+// 结构每多 8 字节就是 4MB 常驻内存。Kind 用 uint8、偏移用 int32
+// （单文件超 2GB 不在考虑范围），并去掉 ValStart/ValEnd —— 值区间
+// 可以由 Start/End 与类型推导出来（见 Value）。
 type Token struct {
-	Kind     Kind
-	Start    int
-	End      int
-	ValStart int
-	ValEnd   int
+	Kind  Kind
+	Start int32
+	End   int32
 }
 
 // Text 返回 token 的原文。
 func (t Token) Text(src []byte) string { return string(src[t.Start:t.End]) }
 
 // Value 返回字面量的内容（已去引号），其他类型返回原文。
-func (t Token) Value(src []byte) string { return string(src[t.ValStart:t.ValEnd]) }
+func (t Token) Value(src []byte) string {
+	lo, hi := t.valueRange(src)
+	return string(src[lo:hi])
+}
+
+// valueRange 推导字面量的内容区间。
+//
+// 正常闭合的字符串/模板是「首尾各去掉一个引号」；未闭合（换行截断）时
+// 只去掉开头那个。非字面量返回原文区间。
+func (t Token) valueRange(src []byte) (int32, int32) {
+	switch t.Kind {
+	case TokString, TokTemplate:
+		if t.End-t.Start >= 2 && isQuote(src[t.End-1]) {
+			return t.Start + 1, t.End - 1
+		}
+		return t.Start + 1, t.End
+	}
+	return t.Start, t.End
+}
+
+func isQuote(c byte) bool { return c == '"' || c == '\'' || c == '`' }
 
 // Lexer 是增量式的 JS 词法分析器。
 //
@@ -69,7 +91,8 @@ func NewLexer(src []byte) *Lexer { return &Lexer{src: src} }
 func (l *Lexer) Next() Token {
 	l.skipSpace()
 	if l.pos >= len(l.src) {
-		return Token{Kind: TokEOF, Start: len(l.src), End: len(l.src), ValStart: len(l.src), ValEnd: len(l.src)}
+		end := int32(len(l.src))
+		return Token{Kind: TokEOF, Start: end, End: end}
 	}
 	c := l.src[l.pos]
 	start := l.pos
@@ -118,7 +141,7 @@ func (l *Lexer) Next() Token {
 }
 
 func (l *Lexer) tok(k Kind, start int) Token {
-	t := Token{Kind: k, Start: start, End: l.pos, ValStart: start, ValEnd: l.pos}
+	t := Token{Kind: k, Start: int32(start), End: int32(l.pos)}
 	l.prevSignificant, l.hasPrev = t, true
 	return t
 }
@@ -144,21 +167,18 @@ func (l *Lexer) skipSpace() {
 func (l *Lexer) scanQuoted(quote byte) Token {
 	start := l.pos
 	l.pos++ // 开引号
-	valStart := l.pos
 	for l.pos < len(l.src) {
 		switch l.src[l.pos] {
 		case '\\':
 			l.pos += 2
 		case quote:
-			valEnd := l.pos
 			l.pos++
-			t := Token{Kind: TokString, Start: start, End: l.pos, ValStart: valStart, ValEnd: valEnd}
+			t := Token{Kind: TokString, Start: int32(start), End: int32(l.pos)}
 			l.prevSignificant, l.hasPrev = t, true
 			return t
 		case '\n':
 			// 未闭合的字符串：到这里为止，避免吞掉后面整段代码
-			valEnd := l.pos
-			t := Token{Kind: TokString, Start: start, End: l.pos, ValStart: valStart, ValEnd: valEnd}
+			t := Token{Kind: TokString, Start: int32(start), End: int32(l.pos)}
 			l.prevSignificant, l.hasPrev = t, true
 			return t
 		default:
@@ -173,22 +193,20 @@ func (l *Lexer) scanQuoted(quote byte) Token {
 func (l *Lexer) scanTemplate() Token {
 	start := l.pos
 	l.pos++ // 反引号
-	valStart := l.pos
 	for l.pos < len(l.src) {
 		switch l.src[l.pos] {
 		case '\\':
 			l.pos += 2
 		case '`':
-			valEnd := l.pos
 			l.pos++
-			t := Token{Kind: TokTemplate, Start: start, End: l.pos, ValStart: valStart, ValEnd: valEnd}
+			t := Token{Kind: TokTemplate, Start: int32(start), End: int32(l.pos)}
 			l.prevSignificant, l.hasPrev = t, true
 			return t
 		default:
 			l.pos++
 		}
 	}
-	t := Token{Kind: TokTemplate, Start: start, End: l.pos, ValStart: valStart, ValEnd: l.pos}
+	t := Token{Kind: TokTemplate, Start: int32(start), End: int32(l.pos)}
 	l.prevSignificant, l.hasPrev = t, true
 	return t
 }
@@ -212,7 +230,7 @@ func (l *Lexer) scanRegex() Token {
 				for l.pos < len(l.src) && isIdentPart(l.src[l.pos]) {
 					l.pos++
 				}
-				t := Token{Kind: TokRegex, Start: start, End: l.pos, ValStart: start, ValEnd: l.pos}
+				t := Token{Kind: TokRegex, Start: int32(start), End: int32(l.pos)}
 				l.prevSignificant, l.hasPrev = t, true
 				return t
 			}

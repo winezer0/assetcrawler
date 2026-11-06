@@ -21,15 +21,29 @@ type Chunk struct {
 type tokenList struct {
 	src  []byte
 	toks []Token
+	// truncated 表示 token 数量触到了上限，后面的源码没有被扫描。
+	// 必须往上报：否则调用方只会看到「没找到清单」，而不知道是被截断了。
+	truncated bool
 }
 
 func lexAll(src []byte) *tokenList {
 	lx := NewLexer(src)
-	out := &tokenList{src: src}
+	// 预分配：Token 是 40 字节，不预分配时 append 的倍增扩容会反复拷贝，
+	// 实测占掉全部内存分配的 91%（1MB 源码约 111MB）。
+	// 压缩代码大约 2 字节一个 token，按 /2 估能一次分配到位；源码含注释时略高估，
+	// 但峰值分配比扩容拷贝小得多。
+	est := len(src)/2 + 8
+	if est > maxTokens {
+		est = maxTokens
+	}
+	out := &tokenList{src: src, toks: make([]Token, 0, est)}
 	for i := 0; i < maxTokens; i++ {
 		t := lx.Next()
 		if t.Kind == TokEOF {
 			break
+		}
+		if i == maxTokens-1 {
+			out.truncated = true // 达到上限仍未见 EOF
 		}
 		if t.Kind == TokComment {
 			continue // 注释里的清单不是活的
@@ -47,6 +61,48 @@ func (tl *tokenList) text(i int) string {
 		return ""
 	}
 	return tl.toks[i].Text(tl.src)
+}
+
+// is 判断第 i 个 token 的原文是否等于 s，**不分配字符串**。
+//
+// 扫描循环里每个 token 都调一次 text() 会产生一次 string(src[a:b]) 拷贝，
+// 实测 1MB 源码 11.9 万次分配、94MB 内存，主因就在这里。
+func (tl *tokenList) is(i int, s string) bool {
+	if i < 0 || i >= len(tl.toks) {
+		return false
+	}
+	t := tl.toks[i]
+	if int(t.End-t.Start) != len(s) {
+		return false
+	}
+	for k := 0; k < len(s); k++ {
+		if tl.src[int(t.Start)+k] != s[k] {
+			return false
+		}
+	}
+	return true
+}
+
+// identIs 判断第 i 个 token 是否是指定标识符。
+func (tl *tokenList) identIs(i int, s string) bool {
+	return tl.kind(i) == TokIdent && tl.is(i, s)
+}
+
+// identHasPrefix 判断第 i 个 token 是否是以 p 开头的标识符。
+func (tl *tokenList) identHasPrefix(i int, pfx string) bool {
+	if tl.kind(i) != TokIdent {
+		return false
+	}
+	t := tl.toks[i]
+	if int(t.End-t.Start) < len(pfx) {
+		return false
+	}
+	for k := 0; k < len(pfx); k++ {
+		if tl.src[int(t.Start)+k] != pfx[k] {
+			return false
+		}
+	}
+	return true
 }
 
 func (tl *tokenList) kind(i int) Kind {
@@ -69,12 +125,12 @@ func (tl *tokenList) matchClose(open int) int {
 		return -1
 	}
 	var openCh, closeCh string
-	switch tl.text(open) {
-	case "{":
+	switch {
+	case tl.is(open, "{"):
 		openCh, closeCh = "{", "}"
-	case "[":
+	case tl.is(open, "["):
 		openCh, closeCh = "[", "]"
-	case "(":
+	case tl.is(open, "("):
 		openCh, closeCh = "(", ")"
 	default:
 		return -1
@@ -84,10 +140,11 @@ func (tl *tokenList) matchClose(open int) int {
 		if tl.kind(i) != TokPunct {
 			continue
 		}
-		switch tl.text(i) {
-		case openCh:
+		if tl.is(i, openCh) {
 			depth++
-		case closeCh:
+			continue
+		}
+		if tl.is(i, closeCh) {
 			depth--
 			if depth == 0 {
 				return i
@@ -101,13 +158,13 @@ func (tl *tokenList) matchClose(open int) int {
 // 压缩后形如 `o.p="/static/js/"`，取「名为 p 的属性被赋值为字符串」这一形态。
 func (tl *tokenList) webpackPublicPath() string {
 	for i := 1; i+2 < len(tl.toks); i++ {
-		if tl.kind(i) != TokIdent || tl.text(i) != "p" {
+		if !tl.identIs(i, "p") {
 			continue
 		}
-		if tl.text(i-1) != "." {
+		if !tl.is(i-1, ".") {
 			continue
 		}
-		if tl.text(i+1) != "=" || tl.kind(i+2) != TokString {
+		if !tl.is(i+1, "=") || tl.kind(i+2) != TokString {
 			continue
 		}
 		return tl.value(i + 2)
@@ -140,10 +197,10 @@ func (tl *tokenList) webpackChunks(publicPath string) []Chunk {
 	var out []Chunk
 	for i := 0; i+2 < len(tl.toks); i++ {
 		// 形如 . u = function / . u = ( / . u = e =>
-		if tl.kind(i) != TokIdent || tl.text(i) != "u" {
+		if !tl.identIs(i, "u") {
 			continue
 		}
-		if tl.text(i-1) != "." || tl.text(i+1) != "=" {
+		if !tl.is(i-1, ".") || !tl.is(i+1, "=") {
 			continue
 		}
 		rhsStart, rhsEnd := tl.rhsRange(i + 1)
@@ -170,16 +227,16 @@ func (tl *tokenList) rhsRange(eq int) (int, int) {
 		if tl.kind(i) != TokPunct {
 			continue
 		}
-		switch tl.text(i) {
-		case "{", "[", "(":
+		switch {
+		case tl.is(i, "{") || tl.is(i, "[") || tl.is(i, "("):
 			depth++
-		case "}", "]", ")":
+		case tl.is(i, "}") || tl.is(i, "]") || tl.is(i, ")"):
 			depth--
 			if depth < 0 {
 				// 赋值处在对象/数组内部，遇到外层闭合就结束
 				return start, i - 1
 			}
-		case ",", ";":
+		case tl.is(i, ",") || tl.is(i, ";"):
 			if depth == 0 {
 				return start, i - 1
 			}
@@ -191,10 +248,10 @@ func (tl *tokenList) rhsRange(eq int) (int, int) {
 // parseChunkExpr 解析 `function(e){return "chunk-"+e+"."+{...}[e]+".js"}` 这类表达式。
 func (tl *tokenList) parseChunkExpr(start, end int) (chunkExpr, bool) {
 	// 跳过 function(e){ return ... } 的外壳，只留 return 之后的表达式
-	if tl.kind(start) == TokIdent && tl.text(start) == "function" {
+	if tl.identIs(start, "function") {
 		body := -1
 		for i := start; i <= end; i++ {
-			if tl.text(i) == "{" {
+			if tl.is(i, "{") {
 				body = i
 				break
 			}
@@ -205,7 +262,7 @@ func (tl *tokenList) parseChunkExpr(start, end int) (chunkExpr, bool) {
 		start = body + 1
 	}
 	for i := start; i <= end; i++ {
-		if tl.kind(i) == TokIdent && tl.text(i) == "return" {
+		if tl.identIs(i, "return") {
 			start = i + 1
 			break
 		}
@@ -222,9 +279,9 @@ func (tl *tokenList) parseChunkExpr(start, end int) (chunkExpr, bool) {
 
 	for i := start; i <= end; i++ {
 		// `{...}[param]` —— 查表，整体消费
-		if tl.text(i) == "{" {
+		if tl.is(i, "{") {
 			close := tl.matchClose(i)
-			if close > 0 && close+2 <= end && tl.text(close+1) == "[" && tl.text(close+3) == "]" {
+			if close > 0 && close+3 <= end && tl.is(close+1, "[") && tl.is(close+3, "]") {
 				if t, n, ok := tl.parseStringMap(i, close); ok {
 					flush()
 					// 名字表与哈希表形态相同，靠内容区分：值里带扩展名的当名字表
@@ -257,8 +314,8 @@ func (tl *tokenList) parseChunkExpr(start, end int) (chunkExpr, bool) {
 			}
 			continue
 		}
-		if tl.kind(i) == TokIdent && (tl.text(i) != "return") {
-			if tl.text(i+1) == "[" {
+		if tl.kind(i) == TokIdent && !tl.is(i, "return") {
+			if tl.is(i+1, "[") {
 				// 形如 map[param] 但没有字面表，无法还原
 				i += 2
 				continue
@@ -267,7 +324,7 @@ func (tl *tokenList) parseChunkExpr(start, end int) (chunkExpr, bool) {
 			expr.parts = append(expr.parts, idMark)
 			continue
 		}
-		if tl.text(i) == "+" {
+		if tl.is(i, "+") {
 			flush()
 		}
 	}
@@ -293,7 +350,7 @@ func (tl *tokenList) parseStringMap(open, close int) (map[string]string, int, bo
 		if tl.kind(i) != TokString && tl.kind(i) != TokNumber && tl.kind(i) != TokIdent {
 			continue
 		}
-		if tl.text(i+1) != ":" || tl.kind(i+2) != TokString {
+		if !tl.is(i+1, ":") || tl.kind(i+2) != TokString {
 			continue
 		}
 		out[tl.value(i)] = tl.value(i + 2)
@@ -413,7 +470,7 @@ func splitTemplate(s string) []tmplSeg {
 func (tl *tokenList) viteChunks() []Chunk {
 	hasVite := false
 	for i := range tl.toks {
-		if tl.kind(i) == TokIdent && strings.HasPrefix(tl.text(i), "__vite__") {
+		if tl.identHasPrefix(i, "__vite__") {
 			hasVite = true
 			break
 		}
@@ -445,10 +502,10 @@ func (tl *tokenList) dynamicImports() []Chunk {
 	var out []Chunk
 	seen := map[string]struct{}{}
 	for i := 0; i+2 < len(tl.toks); i++ {
-		if tl.kind(i) != TokIdent || tl.text(i) != "import" {
+		if !tl.identIs(i, "import") {
 			continue
 		}
-		if tl.text(i+1) != "(" {
+		if !tl.is(i+1, "(") {
 			continue
 		}
 		j := i + 2
@@ -464,12 +521,12 @@ func (tl *tokenList) dynamicImports() []Chunk {
 		}
 		// 拼接形式：import("./chunk-" + id + ".js")，只有常量前缀能确定
 		var sb strings.Builder
-		for ; j < len(tl.toks) && tl.text(j) != ")"; j++ {
+		for ; j < len(tl.toks) && !tl.is(j, ")"); j++ {
 			if tl.kind(j) == TokString {
 				sb.WriteString(tl.value(j))
 				continue
 			}
-			if tl.text(j) == "+" {
+			if tl.is(j, "+") {
 				continue
 			}
 			sb.WriteString("\x00")

@@ -61,6 +61,16 @@ SSI 的 `<!--#include virtual|file="x"-->`、Dreamweaver 的
 这类路径浏览器不渲染，但在老 ASP/JSP 站点上常直接指向模板与 include 配置文件——
 实测里正是靠这一条，才没漏掉 `testasp.vulnweb.com` 的模板页。
 
+**JSON 响应体**
+递归提取响应里以 `/` 或 `http(s)://` 开头的字符串。现代接口常用
+`{"next":"/api/orders?page=2"}` 这种「下一跳」，它既不在 HTML 也不在 JS 源码里，
+只出现在响应体中，静态提取看不到。单份响应体上限 200 条，避免大列表接口灌满队列。
+
+**参数形状**
+表单控件名（`input`/`select`/`textarea`，跳过 submit/button/reset/image/file 与 disabled）
+与 JS 调用里的参数对象都作为 `params` 字段带出。只有名字没有取值——
+真实取值要么在客户端生成，要么需要交互，编造一个反而污染结果。
+
 **响应头提取**
 `Location`、`Content-Location`、`Link`、`Refresh`，外加整条重定向链。
 

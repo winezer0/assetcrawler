@@ -23,6 +23,9 @@ type ExecOptions struct {
 	MaxSourceBytes int
 }
 
+// ExecAvailable 表示当前二进制是否编入了执行兜底。
+func ExecAvailable() bool { return false }
+
 // ExtractByExec 在未启用 routeexec 标签时直接返回 ErrExecUnavailable。
 func ExtractByExec(src []byte, opts ExecOptions) (Result, error) {
 	_ = src

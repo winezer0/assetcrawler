@@ -43,6 +43,7 @@ type task struct {
 	tag       string
 	method    string
 	kind      string
+	params    []string
 }
 
 // New 创建采集器。
@@ -238,6 +239,9 @@ func (c *Crawler) extractAll(res *fetcher.Response) ([]extractor.Request, *url.U
 				base = bu
 			}
 		}
+	case c.opts.ExtractJSON && extractor.LooksLikeJSON(res.ContentType, res.URL.Path):
+		// 「下一跳」只出现在响应体里，HTML 与 JS 都看不到
+		out = append(out, extractor.FromJSON(res.Body)...)
 	case extractor.LooksLikeCSS(res.ContentType, res.URL.Path):
 		if c.opts.ExtractFromStyle {
 			out = append(out, extractor.FromCSS(string(res.Body))...)
@@ -253,6 +257,9 @@ func (c *Crawler) extractAll(res *fetcher.Response) ([]extractor.Request, *url.U
 	return out, base
 }
 
+// errBundleTruncated 表示打包产物超出词法扫描上限，结果可能不完整。
+var errBundleTruncated = errors.New("打包产物超过词法扫描上限，chunk/route 结果可能不完整")
+
 // extractRouteGraph 从打包产物里恢复「静态链接看不见」的两类目标：
 // 懒加载 chunk 文件与前端路由表。
 //
@@ -263,6 +270,10 @@ func (c *Crawler) extractRouteGraph(body []byte, source string) []extractor.Requ
 		return nil
 	}
 	res := routegraph.Extract(body)
+	if res.Truncated {
+		// 明确报出来：静默截断会让人误以为「这个包里没有 chunk 清单」
+		c.emitError(source, errBundleTruncated)
+	}
 
 	// 静态拿不到路由时，按需用执行兜底再试一次。
 	// 只对自注册的 webpack chunk 有效，ESM 产物会在里面直接失败。
@@ -314,6 +325,20 @@ func (c *Crawler) toTasks(reqs []extractor.Request, base *url.URL, depth int, re
 		if !ok {
 			continue
 		}
+		// 带参数占位的前端路由（/user/:id、/files/*）只报告形状，不发请求：
+		// SPA 上它们会返回同一个 index.html，把首页重复抓 N 次；
+		// 传统站点上则是一串 404。两者都只是浪费配额。
+		if r.Kind == "route" && (strings.Contains(r.Raw, ":") || strings.Contains(r.Raw, "*")) {
+			c.emit(Result{
+				URL:     u.String(),
+				Method:  r.Method,
+				Source:  r.Source,
+				Depth:   depth,
+				Referer: referer,
+				Kind:    "route",
+			})
+			continue
+		}
 		// 含占位符的模板只作为「接口形状」输出，不入队：
 		// /api/v3/orders/EXPR 这类地址请求必然 404，抓它纯属浪费配额。
 		if r.Confidence == "template" {
@@ -339,6 +364,7 @@ func (c *Crawler) toTasks(reqs []extractor.Request, base *url.URL, depth int, re
 			tag:       r.Tag,
 			method:    r.Method,
 			kind:      r.Kind,
+			params:    r.Params,
 		})
 	}
 	return next
@@ -365,6 +391,7 @@ func (c *Crawler) resultOf(t task, res *fetcher.Response) Result {
 		ContentType: res.ContentType,
 		Referer:     t.referer,
 		Kind:        t.kind,
+		Params:      t.params,
 	}
 }
 

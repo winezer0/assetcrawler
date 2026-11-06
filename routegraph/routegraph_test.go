@@ -155,3 +155,25 @@ func keysOf(m map[string]Route) []string {
 	}
 	return out
 }
+
+// TestTruncationReported 守住「超上限必须报出来」。
+//
+// 之前的行为是静默停止扫描：调用方只会看到「没找到 chunk」，
+// 完全无法区分「包里没有」和「没扫到」。
+func TestTruncationReported(t *testing.T) {
+	small := []byte(`o.p="/static/js/";o.u=function(e){return"chunk-"+e+"."+{1:"aa"}[e]+".js"}`)
+	if Extract(small).Truncated {
+		t.Fatal("小文件不应被标记截断")
+	}
+
+	// 约 6MB，token 数肯定超过 maxTokens
+	unit := []byte("a=1;")
+	big := make([]byte, 0, 6<<20)
+	for len(big) < 6<<20 {
+		big = append(big, unit...)
+	}
+	res := Extract(big)
+	if !res.Truncated {
+		t.Fatalf("6MB 输入应当标记截断（token 上限 %d）", maxTokens)
+	}
+}

@@ -63,6 +63,9 @@ type Result struct {
 	Confidence string `json:"confidence,omitempty"`
 	// Kind 标记资产类别："chunk"（打包分片）、"route"（前端路由），空为普通 URL。
 	Kind string `json:"kind,omitempty"`
+	// Params 是从上下文推断出的参数名（表单控件、JS 调用参数对象）。
+	// 只有名字没有取值：真实取值要么在客户端生成，要么需要交互才能得到。
+	Params []string `json:"params,omitempty"`
 }
 
 // Options 控制采集行为。请用 DefaultOptions() 起步，再按需覆盖字段。
@@ -93,6 +96,8 @@ type Options struct {
 	JSEngine JSEngine
 	// ExtractFromStyle 是否从 style 属性与 <style> 块中提取 url()。
 	ExtractFromStyle bool
+	// ExtractJSON 是否从 JSON 响应体里提取地址（next/links 这类「下一跳」）。
+	ExtractJSON bool
 	// ExtractChunkGraph 是否从打包产物里恢复懒加载 chunk 与前端路由表。
 	ExtractChunkGraph bool
 	// RouteExec 是否允许「执行 chunk」来兜底恢复路由。
@@ -138,6 +143,7 @@ func DefaultOptions() *Options {
 		ExtractJS:          true,
 		JSEngine:           JSEngineRegex,
 		ExtractFromStyle:   true,
+		ExtractJSON:        true,
 		ExtractChunkGraph:  true,
 		RouteExec:          false,
 		Retries:            1,

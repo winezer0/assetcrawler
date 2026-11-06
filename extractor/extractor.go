@@ -31,6 +31,9 @@ type Request struct {
 	// Kind 标记来源类别，目前用于区分 "chunk"（打包产物分片）与 "route"（前端路由）。
 	// 为空表示普通提取结果。
 	Kind string
+	// Params 是从上下文推断出的参数名（表单控件、JS 调用参数对象）。
+	// 只有名字没有取值——取不到真实值，编造一个反而会污染结果。
+	Params []string
 }
 
 // Options 控制提取的深度。默认只做安全的部分。
@@ -152,6 +155,51 @@ func AttrVal(n *html.Node, key string) (string, bool) {
 	return "", false
 }
 
+// formParamNames 收集表单里可提交的控件名。
+//
+// 这是性价比最高的参数来源：一个后台登录页就能给出 username / password / captcha，
+// 而在此之前这些名字全部丢失，只剩下一个光秃秃的 action。
+// 跳过纯按钮类控件（不会产生参数）与 disabled 控件。
+func formParamNames(form *html.Node) []string {
+	var out []string
+	seen := map[string]struct{}{}
+	var walk func(n *html.Node, depth int)
+	walk = func(n *html.Node, depth int) {
+		if n == nil || depth > 12 || len(out) >= 32 {
+			return
+		}
+		for c := n.FirstChild; c != nil; c = c.NextSibling {
+			if c.Type == html.ElementNode {
+				tag := strings.ToLower(c.Data)
+				if tag == "form" && c != form {
+					continue // 嵌套表单不属于当前表单
+				}
+				if tag == "input" || tag == "select" || tag == "textarea" || tag == "button" {
+					if name, ok := AttrVal(c, "name"); ok {
+						if _, disabled := AttrVal(c, "disabled"); !disabled {
+							name = strings.TrimSpace(name)
+							typ, _ := AttrVal(c, "type")
+							switch strings.ToLower(typ) {
+							case "submit", "button", "reset", "image", "file":
+							default:
+								if name != "" && !strings.ContainsAny(name, " \t\n\r&=") {
+									if _, dup := seen[name]; !dup {
+										seen[name] = struct{}{}
+										out = append(out, name)
+									}
+								}
+							}
+						}
+					}
+				}
+			}
+			walk(c, depth+1)
+		}
+	}
+	walk(form, 0)
+	return out
+}
+
 // ParseSrcset 解析 srcset，返回其中每个候选资源的地址（丢弃宽度/密度描述符）。
 func ParseSrcset(v string) []string {
 	var out []string
@@ -216,7 +264,12 @@ func FromHTML(doc *html.Node, o Options) []Request {
 					if mv, ok := AttrVal(n, "method"); ok && strings.EqualFold(strings.TrimSpace(mv), "post") {
 						m = http.MethodPost
 					}
-					out = append(out, Request{Raw: v, Method: m, Source: tag, Attribute: a, Tag: tag})
+					// 表单控件名作为「参数形状」单独带出，不拼进 URL：
+					// POST 表单的参数在 body 里，拼到 query 上会改变语义。
+					out = append(out, Request{
+						Raw: v, Method: m, Source: tag, Attribute: a, Tag: tag,
+						Params: formParamNames(n),
+					})
 				case "archive":
 					// applet[archive] 可能是逗号分隔的多文件
 					for _, p := range strings.Split(v, ",") {

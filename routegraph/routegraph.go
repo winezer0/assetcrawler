@@ -1,11 +1,15 @@
 package routegraph
 
-import "strings"
+import "bytes"
 
 // Result 是一次静态恢复的产出。
 type Result struct {
 	Chunks []Chunk
 	Routes []Route
+	// Truncated 表示源码超过词法上限，后半部分没有参与扫描，
+	// 因此 Chunks/Routes 可能不完整。调用方应当据此提示用户，
+	// 而不是把「没找到」当成「不存在」。
+	Truncated bool
 }
 
 // Empty 表示没有任何产出。
@@ -31,6 +35,7 @@ func Extract(src []byte) Result {
 	res.Chunks = dedupeChunks(res.Chunks)
 
 	res.Routes = tl.routeTables()
+	res.Truncated = tl.truncated
 	return res
 }
 
@@ -61,13 +66,15 @@ func LooksLikeBundle(src []byte) bool {
 	if len(src) < 64 {
 		return false
 	}
-	s := string(src)
-	for _, mark := range []string{
-		"__webpack_require__", "__vite__", "webpackJsonp", "webpackChunk",
-		"createRouter", "createWebHistory", "createBrowserRouter",
-		"routes:", "routes=", "__vitePreload", "miniCssF",
+	// 用 bytes.Contains 而不是先转成 string：body 最大 2MB，
+	// 每个脚本多一次整包拷贝没有意义。
+	for _, mark := range [][]byte{
+		[]byte("__webpack_require__"), []byte("__vite__"), []byte("webpackJsonp"),
+		[]byte("webpackChunk"), []byte("createRouter"), []byte("createWebHistory"),
+		[]byte("createBrowserRouter"), []byte("routes:"), []byte("routes="),
+		[]byte("__vitePreload"), []byte("miniCssF"),
 	} {
-		if strings.Contains(s, mark) {
+		if bytes.Contains(src, mark) {
 			return true
 		}
 	}

@@ -50,11 +50,27 @@ func adaptEngine(fn jsext.Engine) func(string) ([]extractor.Request, bool) {
 		}
 		out := make([]extractor.Request, 0, len(reqs))
 		for _, r := range reqs {
+			// 参数名单独带出：query 参数同时补进 URL（便于按「带参接口」判读），
+			// body 参数只作为形状保留——POST 的字段拼到 query 上会改变语义。
+			params := append([]string(nil), r.QueryParams...)
+			for _, b := range r.BodyParams {
+				dup := false
+				for _, q := range params {
+					if q == b {
+						dup = true
+						break
+					}
+				}
+				if !dup {
+					params = append(params, b)
+				}
+			}
 			out = append(out, extractor.Request{
 				Raw:        withParams(r.URL, r.QueryParams),
 				Method:     r.Method,
 				Source:     "js-ast",
 				Confidence: r.Confidence,
+				Params:     params,
 			})
 		}
 		return out, true

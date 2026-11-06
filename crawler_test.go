@@ -210,7 +210,8 @@ func TestChunkGraphEndToEnd(t *testing.T) {
 	  o.u=function(e){return "chunk-"+e+"."+{101:"a1b2c3",102:"d4e5f6"}[e]+".js"};
 	  var routes=[
 	    {path:"/admin/reports",name:"reports",component:function(){return o.e(101)}},
-	    {path:"/settings/profile",name:"profile",component:function(){return o.e(102)}}
+	    {path:"/settings/profile",name:"profile",component:function(){return o.e(102)}},
+	    {path:"/user/:id",name:"user",component:function(){return o.e(102)}}
 	  ];
 	  window.__routes=routes;
 	})();`
@@ -261,6 +262,20 @@ func TestChunkGraphEndToEnd(t *testing.T) {
 	}
 	if r.StatusCode != 200 {
 		t.Errorf("chunk 状态码 = %d，期望 200", r.StatusCode)
+	}
+
+	// 带参数占位的路由只报告形状，不发请求
+	paramURL := base + "/user/:id"
+	pr, ok := byPath[paramURL]
+	if !ok {
+		t.Errorf("未发现参数路由 %s，实际: %v", paramURL, keysOfResult(byPath))
+	} else {
+		if pr.Kind != "route" {
+			t.Errorf("参数路由 kind = %q，期望 route", pr.Kind)
+		}
+		if pr.StatusCode != 0 {
+			t.Errorf("参数路由不应被抓取，状态码 = %d，期望 0", pr.StatusCode)
+		}
 	}
 
 	// 前端路由必须被识别并打标记
