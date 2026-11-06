@@ -1,8 +1,8 @@
-# 实施现状审计
+# 实施情况
 
-日期：2026-11-06（修复后更新）
-范围：`assetcrawler` 全部已实现能力 + 遗留债务。
-所有数字来自本地实测，非估算。
+日期：2026-11-06 16:00
+代码：`fe81f73`，本地 ahead 3（未推送到 origin）
+所有数字均为本地实测，未验证的会明确标注。
 
 ---
 
@@ -10,109 +10,112 @@
 
 | 项 | 数值 |
 |---|---|
-| Go 代码 | 6619 行（含测试 1393 行） |
-| 包 | 8 个（crawler / fetcher / extractor / frontier / jsext / routegraph / cmd + 2 个引擎实现） |
-| 测试用例 | 47 个 |
-| 覆盖率 | crawler 71.3% · extractor 80.7% · frontier 77.2% · jsext 81.2% · routegraph 82.1% |
-| 直接依赖 | 3 个（goja / gotreesitter / x/net） |
-| 默认二进制 | 15.22 MB |
-| `-tags routeexec` | 23.70 MB |
-| 推送状态 | `5a54566` 已全部推送到 origin/main |
+| Go 代码 | 8295 行（其中测试 2391 行） |
+| 包 | 8 个（含 2 个 JS 引擎实现、1 个独立工具包） |
+| 测试用例 | 76 个 |
+| 直接依赖 | 3 个（`dop251/goja`、`odvcencio/gotreesitter`、`golang.org/x/net`） |
+| 二进制（默认） | 15.22 MB |
+| 二进制（`-tags routeexec`） | 23.70 MB |
 
-覆盖率还有两个 0%：`fetcher` 与 `cmd/assetcrawler` 没有测试文件。
-`jsext/goja`、`jsext/treesitter` 显示 0% 是统计口径——用例写在 `jsext` 包做黑盒测试。
+## 二、覆盖率
 
----
+| 包 | 覆盖率 | 说明 |
+|---|---:|---|
+| crawler（顶层编排） | 75.7% | 端到端 + 配额 + 引擎链 |
+| `extractor` | 83.8% | HTML / 头 / CSS / JSON / 表单参数 |
+| `routegraph` | 82.4% | 词法、chunk、路由表、截断 |
+| `jsext` | 81.2%（`-coverpkg` 82.1%） | 两个引擎的黑盒测试 |
+| `frontier` | 77.2% | 归一化、scope、去重 |
+| `fetcher` | 74.3% | 本轮从 0% 补到 74.3% |
+| `csp` | 86.3% | 新增独立包 |
+| `cmd/assetcrawler` | 0% | 无测试文件 |
 
-## 二、能力现状
+口径提醒：`jsext/goja` 与 `jsext/treesitter` 在 `go test -cover ./...` 下显示 0%，
+那只是「用例写在 jsext 包做黑盒测试」的统计假象，真实覆盖见 `-coverpkg` 的 82.1%。
 
-| 能力 | 状态 | 证据 |
+## 三、包结构与职责
+
+| 包 | 职责 | 依赖 |
 |---|---|---|
-| HTML 20+ 标签 / 注释 / 响应头 / robots / sitemap | 完成 | 探针 13/19 |
-| JS AST 提取（拼接、常量传播、方法、参数） | 完成 | 方法 5/5、参数 3/3 |
-| 表单控件参数名 | 完成 | `/form/submit` 带 `params=q`；登录页可给出 username/password |
-| JSON 响应体「下一跳」 | 完成 | 动态靶站 `/dyn/from-fetch`、vue 夹具 `/api/v3/products?page=2` |
-| chunk 文件名恢复（webpack `u` / vite / 动态 import） | 完成 | vue 夹具 `chunk-101` 200 |
-| 前端路由表（括号栈） | 完成 | 端到端断言 `kind=route`，带 `:param` 的只报告不抓取 |
-| 执行兜底（`-tags routeexec`） | 完成但可选 | 4 个用例含超时保护 |
-| CSP / og / twitter / sourcemap sources / data-* | 未做 | 探针剩余 6 项 ✗ |
+| `assetcrawler` | 编排：种子、BFS、结果组装、引擎选择 | 下面全部 |
+| `fetcher` | HTTP：连接池、限速、按 host 并发、重试、重定向链、body 截断 | 仅标准库 |
+| `extractor` | 纯函数提取：HTML / 响应头 / CSS / JSON / 表单 | 仅 `x/net` |
+| `frontier` | 归一化、scope 判定、去重 | 仅标准库 |
+| `routegraph` | 打包产物：chunk 文件名、前端路由表 | 仅标准库 |
+| `jsext/{goja,treesitter}` | JS AST：拼接求值、方法、参数 | goja / gotreesitter |
+| `csp` | CSP / Report-To 响应头解析 | 仅标准库 |
 
-真实站点（testasp）37 条，与基线差异仍是站点内容变化（`showthread?id=4,5` 已下线）。
+`extractor` 通过 `Options.JSExtract` 注入引擎，自身不 import 任何引擎；
+`csp` 完全独立，不被采集流程调用。
 
----
+## 四、本轮实施内容
 
-## 三、本轮修复（原问题 → 现状）
+| 提交 | 内容 | 验证 |
+|---|---|---|
+| `5a54566` | 截断可感知、routegraph 内存 94.5MB→6.7MB、表单参数、JSON 响应体 | 探针 11→13/19，参数 1/3→3/3 |
+| `a3377c6` | 默认引擎改 `auto`（goja→treesitter 串联）、goja 显式拒绝 ESM、`export ... from`、前缀/端点判定、CSS 选择器过滤 | 真实 Vite 入口从「100% 解析失败」到可用 |
+| `ca03237` | 参数不改写 URL、sitemap 降为 depth 1、fetcher 补 7 个用例 | 60 配额下 JS 0→10，fetcher 0→74.3% |
+| `c3493b8` | 修 data URI 片段引用、vite mapDeps 前缀、非 URL 字面量；固化两份现代站基线 | 404：vuejs 32→8，vite 11→3 |
+| `fe81f73` | 新增独立 `csp` 包（纯函数，不接入采集流程） | 覆盖率 86.3%，真实头夹具 |
 
-### ✅ P1-1 超过 4MB 输入静默截断
+## 五、验收数据
 
-原来 `lexAll` 触到 token 上限就停止，不返回任何信号，调用方只会看到「没找到清单」。
-
-现在 `Result.Truncated` 会置位，并由爬虫层通过错误回调报出（`errBundleTruncated`）。
+**探针夹具**（`testdata/probe/check.py`，默认参数）
 
 ```
-TestTruncationReported：6MB 输入 → Truncated=true；小文件 → false
+[载体]   13/19   [方法]   5/5   [参数]   3/3   [噪音]   0 条
 ```
 
-### ✅ P1-2 内存放大 95 倍
+未覆盖的 6 项：og/twitter meta、`data-*`、CSP×2、sourcemap `sources`。
 
-三处根因，逐个处理：
+**现代站基线**（`-d 2 -max-urls 300`）
 
-| 处理 | 效果 |
+| 站点 | 总数 | JS 文件 | JS 200 | 404 |
+|---|---:|---:|---:|---:|
+| vuejs.org | 298 | 17 | 17 | 8 |
+| vite.dev | 296 | 38 | 38 | 3 |
+
+**传统站基线**（`testasp-2026-11-06b`，`-d 3`）
+
+| 总数 | 200 | 404 | 深度分布 |
+|---:|---:|---:|---|
+| 106 | 104 | 2 | 0:1 / 1:11 / 2:39 / 3:55 |
+
+**ESM 引擎对比**（同一份真实产物）
+
+| 文件 | goja | treesitter |
+|---|---|---|
+| `vite.dev/assets/app.js` | 解析失败 | 2 个 chunk |
+| `vuejs.org/assets/app.js` | 解析失败 | 12 条（9 个 chunk） |
+
+这是默认改成串联的直接原因；详见 `ESM-ANALYSIS.md`。
+
+## 六、基线状态
+
+| 目录 | 状态 |
 |---|---|
-| `lexAll` 预分配（`len(src)/2`，避免 append 倍增拷贝） | 消除 91% 的分配 |
-| 路由扫描帧去掉 `map` 与 key 切片，改固定字段 | 分配次数 11.9 万 → 1.3 万 |
-| `Token` 从 40 字节压到 12 字节（`Kind` uint8、偏移 int32、去掉 ValStart/ValEnd） | 常驻内存减半 |
-| 热循环改用零分配比较（`is` / `identIs` / `identHasPrefix`） | 去掉每个 token 的字符串拷贝 |
+| `testasp-2026-11-06b` | **现行**，106 条 |
+| `testasp-2026-11-06` | 已失效（站点内容变化 + sitemap 调度调整），MANIFEST 已标注 |
+| `vuejs.org-2026-11-06` | 现行，含 `urls-stable.txt` |
+| `vite.dev-2026-11-06` | 现行，含 `urls-stable.txt` |
 
-```
-BenchmarkExtract1MB（1MB 输入）：
-  修复前  34.5 ms/op   94.5 MB/op   119,501 allocs/op
-  修复后   7.9 ms/op    6.7 MB/op    13,278 allocs/op
-```
+现代站文件名带内容哈希，回归必须比 `urls-stable.txt`（hash 归一化），
+否则每次部署都会被判成「几十条消失 + 几十条新增」。
 
-### ✅ P2-1 `-route-exec` 静默失效
+## 七、明确未做
 
-新增 `routegraph.ExecAvailable()`；CLI 启动时检查，未编入则打印构建命令并以**退出码 2** 退出（实测确认）。
+| 项 | 原因 |
+|---|---|
+| CSP 接入采集流程 | 同站比例低、第三方噪音高（MDN 48 主机仅 3 个同站），只作为工具函数 |
+| og/twitter meta、`data-*`、sourcemap `sources` | 剩余 6 项载体，合计约 90 行，未做 |
+| 带 `:param` 路由的实例化抓取 | 现只报告形状，缺开关 |
+| 参数取值的枚举（select / radio / hidden） | 只记录参数名 |
+| `cmd` 的 CLI 测试 | 0% 覆盖，flag 组合靠手工验证 |
+| 大站点内存上限 | `seen` / `results` 常驻，10 万 URL 规模未测 |
 
-### ✅ P2-2 带参数占位的前端路由照抓
+以上都在 `ISSUES.md` 里按 P0/P1/P2 分级，并标了证据与修法成本。
 
-`/user/:id`、`/files/*` 现在只输出形状（`kind=route`、`status=0`），不发请求——
-SPA 上它们会重复抓首页，传统站点上是一串 404。
+## 八、仓库状态
 
-### ✅ P3 文档漂移
-
-- `PLAN.md`：P0-1/P0-2/P0-3/P0-4 标为已完成，P1-1 标为部分完成，其余标未做。
-- `testdata/probe/expected.json`：13/19 已覆盖，与实测一致（`check.py` 的「记录与实际不符」已归零）。
-- 删除已被正式实现取代的三个原型目录（371 行）。
-
-### ✅ 顺带完成的 P0-2 / P0-3
-
-- `formParamNames`：表单控件名作为参数形状带出（跳过 submit/button/reset/image/file 与 disabled）。
-- `extractor.FromJSON`：递归提取响应体里以 `/` 或 `http(s)://` 开头的字符串，上限 200 条。
-
----
-
-## 四、仍然存在的债务
-
-| 项 | 现状 | 影响 |
-|---|---|---|
-| `fetcher` 零单测 | 限速、重试、重定向链只靠端到端间接覆盖 | 改动不易发现回归 |
-| 双 JS 引擎并存 | treesitter 使二进制约 8MB，用于对比与 ESM 解析 | ESM 包确实只有它能解析，不能简单删 |
-| `go.mod` 里的 pprof / regexp2 | 仅 `-tags routeexec` 才链接（`go list -deps` 已验证） | 供应链审计时易被误判 |
-| `maxTokens` 上限 | 2M token ≈ 4MB 源码；超限虽会报告，但仍拿不全 | 调大 `MaxBodySize` 时要留意 |
-| 探针剩余 6 项 | CSP(2)、og/twitter meta(2)、data-*(1)、sourcemap sources(1) | 都是低成本的补全项 |
-
----
-
-## 五、建议
-
-**短期（能力补全，都是小改动）**
-
-1. meta 泛化：`og:url` / `twitter:image` 等 `property`/`name` 前缀判定（约 20 行）。
-2. CSP 响应头：`report-uri` / `connect-src` / `script-src` 的地址抽取（约 60 行）。
-3. sourcemap `sources` 与 `data-*` 泛化。
-
-**中期（质量）**
-
-4. 给 `fetcher` 补单测：重试退避、重定向链、按 host 并发、body 截断。
-5. 决定 treesitter 的去留——若只为对比，可以移到独立 build tag 或工具目录。
+- 本地 `ahead 3`，**未推送**
+- 工作区干净，`go vet` / `gofmt` 无输出，`go test -race ./...` 全绿
