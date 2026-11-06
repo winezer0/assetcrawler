@@ -279,9 +279,13 @@ func FromHTML(doc *html.Node, o Options) []Request {
 						out = append(out, Request{Raw: s, Method: http.MethodGet, Source: tag, Attribute: a, Tag: tag})
 					}
 				case "content":
-					// 仅当 meta 表达的是 refresh 时才当作 URL
+					// meta 的 content 有两类承载：refresh 跳转，以及 og:*/twitter:* 分享元数据
 					if loc, ok := metaRefreshURL(n, v); ok {
 						out = append(out, Request{Raw: loc, Method: http.MethodGet, Source: "meta-refresh", Attribute: a, Tag: tag})
+						break
+					}
+					if loc, key, ok := metaPropertyURL(n, v); ok {
+						out = append(out, Request{Raw: loc, Method: http.MethodGet, Source: "meta-" + key, Attribute: a, Tag: tag})
 					}
 				case "action":
 					m := http.MethodGet
@@ -367,9 +371,12 @@ func FromHTML(doc *html.Node, o Options) []Request {
 				out = append(out, FromJS(sb.String(), o)...)
 			}
 		}
+
+		// 6) data-* 自定义属性：现代前端常把接口端点挂在 data-* 上
+		out = append(out, dataAttrRequests(n, tag)...)
 	})
 
-	// 6) 注释里的路径
+	// 7) 注释里的路径
 	out = append(out, fromComments(doc)...)
 
 	return out

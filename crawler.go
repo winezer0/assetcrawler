@@ -234,6 +234,12 @@ func (c *Crawler) extractAll(res *fetcher.Response) ([]extractor.Request, *url.U
 
 	out = append(out, extractor.FromHeaders(res.Header)...)
 
+	// source map 与下面的内容分派并行：`.map` 常以 application/json 返回，
+	// 会被 JSON 分支按普通响应处理，而它的 sources 需要专门归一化。
+	if extractor.LooksLikeSourceMap(res.URL.Path, res.Body) {
+		out = append(out, extractor.FromSourceMap(res.Body)...)
+	}
+
 	switch {
 	case extractor.LooksLikeHTML(res.ContentType, res.Body):
 		doc, err := html.Parse(bytes.NewReader(res.Body))

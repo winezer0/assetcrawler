@@ -50,17 +50,17 @@
     {
       "url": "/shared/og-page",
       "via": "meta[property=og:url]",
-      "implemented": false
+      "implemented": true
     },
     {
       "url": "/img/twitter-card.png",
       "via": "meta[name=twitter:image]",
-      "implemented": false
+      "implemented": true
     },
     {
       "url": "/api/from-data-attr",
       "via": "data-* 自定义属性",
-      "implemented": false
+      "implemented": true
     },
     {
       "url": "/csp-report-endpoint",
@@ -95,7 +95,7 @@
     {
       "url": "/src/api/order.js",
       "via": "sourcemap 的 sources 列表",
-      "implemented": false
+      "implemented": true
     }
   ],
   "known_noise": [
