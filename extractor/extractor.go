@@ -34,6 +34,9 @@ type Request struct {
 	// Params 是从上下文推断出的参数名（表单控件、JS 调用参数对象）。
 	// 只有名字没有取值——取不到真实值，编造一个反而会污染结果。
 	Params []string
+	// ParamValues 是「值可静态确定」的那部分参数：hidden 的默认值、
+	// select/radio/checkbox 的候选集合。只报告候选，不合成 URL。
+	ParamValues []ParamValue
 }
 
 // Options 控制提取的深度。默认只做安全的部分。
@@ -296,7 +299,8 @@ func FromHTML(doc *html.Node, o Options) []Request {
 					// POST 表单的参数在 body 里，拼到 query 上会改变语义。
 					out = append(out, Request{
 						Raw: v, Method: m, Source: tag, Attribute: a, Tag: tag,
-						Params: formParamNames(n),
+						Params:      formParamNames(n),
+						ParamValues: formParamValues(n),
 					})
 				case "archive":
 					// applet[archive] 可能是逗号分隔的多文件

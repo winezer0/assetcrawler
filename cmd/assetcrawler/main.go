@@ -37,32 +37,34 @@ func (m *multiFlag) Set(v string) error {
 
 func main() {
 	var (
-		urls      multiFlag
-		headers   multiFlag
-		known     multiFlag
-		depth     = flag.Int("d", 3, "max crawl depth (0 = unlimited)")
-		conc      = flag.Int("c", 10, "global concurrency")
-		perHost   = flag.Int("phc", 4, "per-host concurrency")
-		rateLimit = flag.Int("rl", 0, "global requests per second (0 = unlimited)")
-		timeout   = flag.Int("timeout", 10, "per-request timeout in seconds")
-		maxURLs   = flag.Int("max-urls", 2000, "max pages to fetch")
-		maxBody   = flag.Int64("max-body", 2<<20, "max response body bytes")
-		scope     = flag.String("scope", "subdomain", "scope: same-host | subdomain | any")
-		proxy     = flag.String("proxy", "", "proxy URL, e.g. http://127.0.0.1:8080")
-		output    = flag.String("o", "", "write results to file (default stdout)")
-		asJSONL   = flag.Bool("jsonl", false, "output JSONL instead of plain URLs")
-		insecure  = flag.Bool("k", false, "skip TLS verification")
-		noRobots  = flag.Bool("no-robots", false, "do not read robots.txt")
-		noSitemap = flag.Bool("no-sitemap", false, "do not read sitemap.xml")
-		noJS      = flag.Bool("no-js", false, "disable JS/CSS endpoint extraction")
-		jsEngine  = flag.String("js-engine", "auto", "JS extraction engine: auto | regex | goja | treesitter")
-		noChunk   = flag.Bool("no-chunk-graph", false, "disable chunk/route graph recovery from bundles")
-		routeExec = flag.Bool("route-exec", false, "allow executing webpack chunks to recover routes (runs target site JS; off by default)")
-		silent    = flag.Bool("silent", false, "only print URLs, no summary")
-		verbose   = flag.Bool("v", false, "print errors to stderr")
-		ua        = flag.String("ua", "", "custom User-Agent")
-		exclude   = flag.String("exclude", "", "exclude URLs matching this regex")
-		include   = flag.String("include", "", "only keep URLs matching this regex")
+		urls        multiFlag
+		headers     multiFlag
+		known       multiFlag
+		depth       = flag.Int("d", 3, "max crawl depth (0 = unlimited)")
+		conc        = flag.Int("c", 10, "global concurrency")
+		perHost     = flag.Int("phc", 4, "per-host concurrency")
+		rateLimit   = flag.Int("rl", 0, "global requests per second (0 = unlimited)")
+		timeout     = flag.Int("timeout", 10, "per-request timeout in seconds")
+		maxURLs     = flag.Int("max-urls", 2000, "max pages to fetch")
+		maxBody     = flag.Int64("max-body", 2<<20, "max response body bytes")
+		scope       = flag.String("scope", "subdomain", "scope: same-host | subdomain | any")
+		proxy       = flag.String("proxy", "", "proxy URL, e.g. http://127.0.0.1:8080")
+		output      = flag.String("o", "", "write results to file (default stdout)")
+		asJSONL     = flag.Bool("jsonl", false, "output JSONL instead of plain URLs")
+		insecure    = flag.Bool("k", false, "skip TLS verification")
+		noRobots    = flag.Bool("no-robots", false, "do not read robots.txt")
+		noSitemap   = flag.Bool("no-sitemap", false, "do not read sitemap.xml")
+		noJS        = flag.Bool("no-js", false, "disable JS/CSS endpoint extraction")
+		jsEngine    = flag.String("js-engine", "auto", "JS extraction engine: auto | regex | goja | treesitter")
+		noChunk     = flag.Bool("no-chunk-graph", false, "disable chunk/route graph recovery from bundles")
+		routeExec   = flag.Bool("route-exec", false, "allow executing webpack chunks to recover routes (runs target site JS; off by default)")
+		routeExpand = flag.Bool("route-expand", false, "expand :param routes with placeholders and fetch them (capped by -route-expand-max)")
+		routeMax    = flag.Int("route-expand-max", 50, "max routes to expand when -route-expand is on")
+		silent      = flag.Bool("silent", false, "only print URLs, no summary")
+		verbose     = flag.Bool("v", false, "print errors to stderr")
+		ua          = flag.String("ua", "", "custom User-Agent")
+		exclude     = flag.String("exclude", "", "exclude URLs matching this regex")
+		include     = flag.String("include", "", "only keep URLs matching this regex")
 	)
 
 	flag.Var(&urls, "u", "target URL (repeatable or comma-separated)")
@@ -92,6 +94,8 @@ func main() {
 	opts.JSEngine = assetcrawler.JSEngine(*jsEngine)
 	opts.ExtractChunkGraph = !*noChunk
 	opts.RouteExec = *routeExec
+	opts.RouteExpand = *routeExpand
+	opts.MaxRouteExpand = *routeMax
 	opts.KnownFiles = known
 	if *ua != "" {
 		opts.UserAgent = *ua

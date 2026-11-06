@@ -26,24 +26,26 @@ type Crawler struct {
 	fetcher  *fetcher.Fetcher
 	frontier *frontier.Frontier
 
-	mu      sync.Mutex
-	emitMu  sync.Mutex
-	fetched int
-	results []Result
+	mu            sync.Mutex
+	emitMu        sync.Mutex
+	fetched       int
+	routeExpanded int
+	results       []Result
 }
 
 // task 是一个待抓取项。来源字段会一路带到结果里，
 // 便于事后区分「这条 URL 是从 a 标签来的，还是从 JS 里抠出来的」。
 type task struct {
-	url       *url.URL
-	depth     int
-	referer   string
-	source    string
-	attribute string
-	tag       string
-	method    string
-	kind      string
-	params    []string
+	url         *url.URL
+	depth       int
+	referer     string
+	source      string
+	attribute   string
+	tag         string
+	method      string
+	kind        string
+	params      []string
+	paramValues []extractor.ParamValue
 }
 
 // New 创建采集器。
@@ -353,6 +355,22 @@ func (c *Crawler) toTasks(reqs []extractor.Request, base *url.URL, depth int, re
 				Referer: referer,
 				Kind:    "route",
 			})
+			// 开关打开时用占位值展开一次。静态爬取拿不到参数取值，
+			// 但 `/user/1` 这类地址往往与真实记录走同一套模板，
+			// 从而把内页背后的接口调用暴露出来。配额由 MaxRouteExpand 限制。
+			if c.opts.RouteExpand && c.reserveRouteExpand() {
+				if ep, ok := expandRoutePath(u.Path); ok {
+					if eu, ok := c.frontier.Push(ep, base); ok {
+						next = append(next, task{
+							url:     eu,
+							depth:   depth,
+							referer: referer,
+							source:  "route-expand",
+							method:  "GET",
+						})
+					}
+				}
+			}
 			continue
 		}
 		// 含占位符的模板只作为「接口形状」输出，不入队：
@@ -372,15 +390,16 @@ func (c *Crawler) toTasks(reqs []extractor.Request, base *url.URL, depth int, re
 			continue
 		}
 		next = append(next, task{
-			url:       u,
-			depth:     depth,
-			referer:   referer,
-			source:    r.Source,
-			attribute: r.Attribute,
-			tag:       r.Tag,
-			method:    r.Method,
-			kind:      r.Kind,
-			params:    r.Params,
+			url:         u,
+			depth:       depth,
+			referer:     referer,
+			source:      r.Source,
+			attribute:   r.Attribute,
+			tag:         r.Tag,
+			method:      r.Method,
+			kind:        r.Kind,
+			params:      r.Params,
+			paramValues: r.ParamValues,
 		})
 	}
 	return next
@@ -408,6 +427,7 @@ func (c *Crawler) resultOf(t task, res *fetcher.Response) Result {
 		Referer:     t.referer,
 		Kind:        t.kind,
 		Params:      t.params,
+		ParamValues: t.paramValues,
 	}
 }
 
@@ -448,6 +468,20 @@ func (c *Crawler) reserveFetch() bool {
 		return false
 	}
 	c.fetched++
+	return true
+}
+
+// reserveRouteExpand 预留一次路由展开配额。
+func (c *Crawler) reserveRouteExpand() bool {
+	if c.opts.MaxRouteExpand <= 0 {
+		return false
+	}
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if c.routeExpanded >= c.opts.MaxRouteExpand {
+		return false
+	}
+	c.routeExpanded++
 	return true
 }
 

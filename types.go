@@ -66,6 +66,10 @@ type Result struct {
 	// Params 是从上下文推断出的参数名（表单控件、JS 调用参数对象）。
 	// 只有名字没有取值：真实取值要么在客户端生成，要么需要交互才能得到。
 	Params []string `json:"params,omitempty"`
+	// ParamValues 是「值可静态确定」的那部分参数：hidden 的默认值、
+	// select/radio/checkbox 的候选集合。只报告候选，不合成 URL——
+	// hidden 值常带 csrf/session，拼出来的地址必然失败。
+	ParamValues []extractor.ParamValue `json:"param_values,omitempty"`
 }
 
 // Options 控制采集行为。请用 DefaultOptions() 起步，再按需覆盖字段。
@@ -103,6 +107,16 @@ type Options struct {
 	// RouteExec 是否允许「执行 chunk」来兜底恢复路由。
 	// 默认关闭：它会运行目标站的代码，只在明确需要时开启。
 	RouteExec bool
+
+	// RouteExpand 是否把带 :param 的前端路由展开成具体路径去试抓，默认关闭。
+	//
+	// 关着的时候这类路由只作为 kind=route 报告：SPA 上它们返回同一个
+	// index.html，会把首页重复抓 N 次；传统站点上则是一串 404。
+	// 打开后每个路由用占位值（:id -> 1，*rest -> index）展开一次，
+	// 由 MaxRouteExpand 限流。
+	RouteExpand bool
+	// MaxRouteExpand 单次采集最多展开多少条路由，默认 50。
+	MaxRouteExpand int
 	// Insecure 跳过 TLS 证书校验。
 	Insecure bool
 	// Proxy 形如 http://127.0.0.1:8080 或 socks5://127.0.0.1:1080。空表示直连。
@@ -146,6 +160,8 @@ func DefaultOptions() *Options {
 		ExtractJSON:        true,
 		ExtractChunkGraph:  true,
 		RouteExec:          false,
+		RouteExpand:        false,
+		MaxRouteExpand:     50,
 		Retries:            1,
 		MaxRedirects:       5,
 	}

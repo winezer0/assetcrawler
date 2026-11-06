@@ -506,7 +506,11 @@ func (e *extractor) collectLiterals(root *gotreesitter.Node) {
 				emit(n.ChildByFieldName("right", e.lang))
 			}
 		case "pair":
-			emit(n.ChildByFieldName("value", e.lang))
+			// 对象属性值是最模糊的一类载体：`{url:"/api/orders"}` 是端点，
+			// `{STATIC:"/static/"}` 与 `{VUE_APP_API:"/api/v3"}` 是可拼接前缀。
+			if e.pairValueUsable(n) {
+				emit(n.ChildByFieldName("value", e.lang))
+			}
 		case "array":
 			for _, c := range namedChildren(n) {
 				emit(c)
@@ -529,6 +533,34 @@ func (e *extractor) collectLiterals(root *gotreesitter.Node) {
 	})
 }
 
+// pairValueUsable 判断对象属性值是否值得作为地址候选。
+//
+// 两层判定：
+//  1. 键名本身有地址语义（url/path/endpoint/api...）→ 直接收，
+//     这类契约明确，`{url:"/api"}` 即使是前缀也是调用方要的；
+//  2. 键名无语义 → 要求值具备端点形状，把 `{STATIC:"/static/"}` 这类
+//     配置前缀挡掉，否则每个配置块会贡献 1~3 条必然 404 的地址。
+func (e *extractor) pairValueUsable(n *gotreesitter.Node) bool {
+	val := n.ChildByFieldName("value", e.lang)
+	if val == nil {
+		return false
+	}
+	if key := n.ChildByFieldName("key", e.lang); key != nil {
+		if urlishNames[strings.ToLower(strings.Trim(key.Text(e.src), `"'`))] {
+			return true
+		}
+	}
+	s, certain := e.eval(val)
+	return certain && endpointShaped(s)
+}
+
+// urlishNames 是「键名/属性名具备地址语义」的取值集合。
+var urlishNames = map[string]bool{
+	"href": true, "src": true, "action": true, "url": true, "uri": true,
+	"path": true, "pathname": true, "location": true, "redirect": true,
+	"endpoint": true, "link": true, "target": true, "data": true,
+}
+
 // endpointShaped 判断一个「裸变量赋值」是否更像完整端点而不是可拼接的前缀。
 //
 // 变量赋值是最模糊的一类载体：`var base="/api/v3"` 是前缀，
@@ -544,16 +576,33 @@ func endpointShaped(s string) bool {
 	if strings.ContainsAny(s, "?#") {
 		return true
 	}
+	// 以 / 结尾的是目录或前缀（`/static/`），拼上任何片段才是地址
+	if strings.HasSuffix(s, "/") {
+		return false
+	}
 	trimmed := strings.Trim(s, "/")
-	if segs := strings.Count(trimmed, "/") + 1; segs >= 3 {
+	if trimmed == "" {
+		return false
+	}
+	segs := strings.Split(trimmed, "/")
+	if len(segs) >= 3 {
 		return true
 	}
-	last := trimmed
-	if i := strings.LastIndex(trimmed, "/"); i >= 0 {
-		last = trimmed[i+1:]
+	last := segs[len(segs)-1]
+	if strings.Contains(last, ".") {
+		return true
 	}
-	return strings.Contains(last, ".")
+	// 版本号段几乎总是前缀：`/api/v3` + `/orders`
+	if versionSegRe.MatchString(last) {
+		return false
+	}
+	// 两段以上、末段不是版本号，按端点收；单段太模糊（`/static`、`/home`），
+	// 猜它必然制造 404。
+	return len(segs) >= 2
 }
+
+// versionSegRe 匹配版本号形态的路径段。
+var versionSegRe = regexp.MustCompile(`^v\d+(\.\d+)*$`)
 
 // standaloneURL 与 goja 引擎保持同一判定：必须能锚定到站点根或绝对地址。
 func standaloneURL(s string) bool {
@@ -583,12 +632,7 @@ func urlishMemberNode(left *gotreesitter.Node, src []byte, lang *gotreesitter.La
 	default:
 		return false
 	}
-	switch strings.ToLower(name) {
-	case "href", "src", "action", "url", "uri", "path", "pathname",
-		"location", "redirect", "endpoint", "link", "target", "data":
-		return true
-	}
-	return false
+	return urlishNames[strings.ToLower(name)]
 }
 
 func (e *extractor) calleeOf(n *gotreesitter.Node) (obj, name string) {
