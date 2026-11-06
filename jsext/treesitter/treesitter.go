@@ -44,7 +44,7 @@ func Extract(src []byte) ([]jsext.Request, error) {
 
 	e := &extractor{
 		src: src, lang: lang,
-		vars:       map[string]string{},
+		scopes:     newScopeTable(),
 		prefixVars: map[string]bool{},
 		imports:    map[string]importRef{},
 	}
@@ -64,7 +64,10 @@ func Extract(src []byte) ([]jsext.Request, error) {
 type extractor struct {
 	src  []byte
 	lang *gotreesitter.Language
-	vars map[string]string
+	// scopes 是按作用域分层的常量表，见 scopes.go。
+	scopes *scopeTable
+	// curScope 是当前遍历位置所在的作用域，由 walk 维护。
+	curScope uint32
 	// prefixVars 记录被当作拼接前缀使用的变量，用于区分 base 常量与完整端点。
 	prefixVars map[string]bool
 	// imports 把 import 绑定还原成「本地名 → 来源」，供方法判定使用。
@@ -115,8 +118,9 @@ func (e *extractor) collectConsts(root *gotreesitter.Node) {
 			return
 		}
 		// 用部分求值而非只认字面量：`var u = c + "/orders"` 同样可静态确定。
+		// 值记在声明处所在的作用域，避免跨模块同名变量互相覆盖。
 		if v, certain := e.eval(value); certain && v != "" {
-			e.vars[name.Text(e.src)] = v
+			e.scopes.set(e.curScope, name.Text(e.src), v)
 		}
 	})
 }
@@ -415,7 +419,7 @@ func (e *extractor) eval(n *gotreesitter.Node) (string, bool) {
 	case "string", "template_string":
 		return e.literal(n)
 	case "identifier":
-		if s, ok := e.vars[n.Text(e.src)]; ok {
+		if s, ok := e.scopes.lookup(n.Text(e.src), e.curScope); ok {
 			return s, true
 		}
 	case "binary_expression":
@@ -605,15 +609,23 @@ func (e *extractor) calleeOf(n *gotreesitter.Node) (obj, name string) {
 	return "", ""
 }
 
-// walk 深度优先遍历所有节点（含未命名节点）。
+// walk 深度优先遍历所有节点（含未命名节点），沿路维护作用域上下文。
+//
+// 回调不感知作用域：eval 从 e.curScope 读当前作用域，
+// 进入/离开函数边界时自动切换，调用方无需关心。
 func (e *extractor) walk(n *gotreesitter.Node, fn func(*gotreesitter.Node)) {
 	if n == nil {
 		return
+	}
+	prev := e.curScope
+	if id, ok := e.enterScope(n); ok {
+		e.curScope = id
 	}
 	fn(n)
 	for i := 0; i < n.ChildCount(); i++ {
 		e.walk(n.Child(i), fn)
 	}
+	e.curScope = prev
 }
 
 func namedChildren(n *gotreesitter.Node) []*gotreesitter.Node {
