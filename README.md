@@ -69,8 +69,19 @@ SSI 的 `<!--#include virtual|file="x"-->`、Dreamweaver 的
 
 **参数形状**
 表单控件名（`input`/`select`/`textarea`，跳过 submit/button/reset/image/file 与 disabled）
-与 JS 调用里的参数对象都作为 `params` 字段带出。只有名字没有取值——
-真实取值要么在客户端生成，要么需要交互，编造一个反而污染结果。
+与 JS 调用里的参数对象都作为 `params` 字段带出。
+
+其中**值可静态确定**的那部分另走 `param_values`：
+
+```json
+{"name":"cat","values":["12"],"kind":"hidden"},
+{"name":"sort","values":["price_asc","newest"],"kind":"select"}
+```
+
+来源只有三种：`hidden` 的默认值、`select` 的 option、`radio`/`checkbox` 的组值。
+文本框、空值、浏览器默认值 `on`、提交按钮一律不收。
+
+**只报告候选，不合成 URL**：hidden 值常带 csrf/session，拼出来的地址必然失败。
 
 **响应头提取**
 `Location`、`Content-Location`、`Link`、`Refresh`，外加整条重定向链。
@@ -233,8 +244,18 @@ assetcrawler -u https://example.com -known-file /.git/config -known-file /actuat
 ```
 
 常用参数：`-d` 深度、`-c` 并发、`-phc` 单 host 并发、`-rl` QPS、`-max-urls` 页面上限、
-`-max-body` body 截断、`-scope`、`-no-js`、`-no-robots`、`-no-sitemap`、`-k` 跳过 TLS 校验、
-`-include/-exclude` 正则过滤、`-v` 打印错误。
+`-max-body` body 截断、`-max-seen` 已见集合上限（默认 20 万）、`-scope`、`-no-js`、
+`-no-robots`、`-no-sitemap`、`-k` 跳过 TLS 校验、`-include/-exclude` 正则过滤、`-v` 打印错误。
+
+前端相关的两个开关默认关闭，因为都会主动改变对目标的行为：
+
+```bash
+# 把 /user/:id 这类路由按占位值抓一遍（默认最多 50 条）
+assetcrawler -u https://target/ -route-expand -route-expand-max 20
+
+# 执行 webpack 自注册 chunk 取路由表（会运行目标站代码）
+assetcrawler -u https://target/ -route-exec
+```
 
 ## 结果模型
 

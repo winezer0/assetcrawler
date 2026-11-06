@@ -1,7 +1,7 @@
 # 现存问题清单
 
-整理日期：2026-11-06 10:12；更新 19:40
-代码状态：P0-1 / P0-2 / P0-3 已修复（见各条状态）
+整理日期：2026-11-06 10:12；更新 20:20
+代码状态：P0-1~P0-4、P1-2~P1-4、P1-6~P1-8、P2-1、P2-3 已修复（见各条状态）
 说明：所有结论均来自本地实测；每条给出证据、影响与修法，成本为代码量级估计。
 
 ---
@@ -84,7 +84,12 @@ axios.post("/api/create",{name:"x",age:2})         →  /api/create（未改写�
 
 ---
 
-### P0-4 常量表不分作用域，跨模块同名变量产出错误 URL
+### P0-4 常量表不分作用域，跨模块同名变量产出错误 URL（✅ 已修复 2026-11-06）
+
+修法：新增 `jsext/treesitter/scopes.go`，按函数级作用域分层；`walk` 进出函数边界时
+切换 `curScope`，`eval` 从当前作用域沿 parent 链向上查找。
+验证：三 IIFE 夹具 4/4 正确（原 2/4）；真实产物 wp_vendor.js 63→42 条，
+消失的 21 条全是噪音（react.dev 错误模板），真实 URL 一条未丢。
 
 `jsext/treesitter` 的 `extractor.vars` 是一张全局 map，`collectConsts` 后写覆盖先写。
 压缩/打包产物里每个模块各自声明 `const n=...` 是常态，后一个模块的值会污染前一个：
@@ -140,7 +145,13 @@ method_definition / program` 划分作用域，查找时逐层向上（`gotreesi
 
 剩余未覆盖：og/twitter meta、`data-*`、sourcemap `sources`。
 
-### P1-2 配置对象里的 base 地址变成 404
+### P1-2 配置对象里的 base 地址变成 404（✅ 已修复 2026-11-06）
+
+修法：新增 `pairValueUsable`——键名有地址语义（url/path/endpoint…）直接收，
+键名无语义时要求值具备端点形状。同时细化 `endpointShaped`：尾斜杠、版本号段
+（`/api/v3`）判前缀，单段路径不猜。
+验证：`{VUE_APP_API:"/api/v3"}`、`{STATIC:"/static/"}` 不再产出；
+`{url:"/api/orders"}`、`{base:"/api/default"}` 仍正常收。
 
 **证据**：vue 夹具实测输出里有
 
@@ -157,7 +168,13 @@ method_definition / program` 划分作用域，查找时逐层向上（`gotreesi
 这类两段路径——需要先定规则（例如只排除以 `/` 结尾的、或段数 ≤ 2 且无扩展名的）。
 成本：约 20 行 + 规则讨论。
 
-### P1-3 带参数的前端路由只报告不抓取
+### P1-3 带参数的前端路由只报告不抓取（✅ 已提供开关 2026-11-06）
+
+实现：`-route-expand`（默认关闭）+ `-route-expand-max`（默认 50）。
+`:id` 展开成 `1`、`*rest` 展开成 `index`，原路由仍以 `kind=route` 输出，
+展开的地址以 `source=route-expand` 另列入队。
+验证：`TestRouteExpandIntegration` 覆盖开关两态——关闭时不访问 `/user/:id`，
+开启时访问 `/user/1`。默认值仍保守，噪音率需在真实站上再评估。
 
 `/user/:id` 这类路由现在 `kind=route`、`status=0`，不发起请求（避免 SPA 重复抓首页）。
 代价是**SPA 的深层页面完全拿不到**——而它们往往是 API 调用最集中的地方。
@@ -165,7 +182,11 @@ method_definition / program` 划分作用域，查找时逐层向上（`gotreesi
 **现状是刻意取舍，但缺一个开关**。可选：`-route-expand` 用占位值（`/user/1`）试抓，
 带上限与去重。成本：40 行，噪音需实测。
 
-### P1-4 参数只有名字，没有值
+### P1-4 参数只有名字，没有值（✅ 保守版已实现 2026-11-06）
+
+实现：`ParamValues` 输出 hidden 默认值、select/radio/checkbox 候选集合，
+只报告候选不合成 URL。上限：单表单 32 个参数、单参数 20 个值、单值 256 字节。
+激进版（按值合成 URL 入队）未做：hidden 常带 csrf/session，拼出来必然失败。
 
 `Params` 里只有 `page`、`size`，没有取值。但表单里有一批**静态可取**的值：
 `<input type="hidden" value="12">` 是确定值，`<select>` / `radio` 的候选集合很小。
@@ -177,8 +198,8 @@ method_definition / program` 划分作用域，查找时逐层向上（`gotreesi
 
 | 项 | 数值 |
 |---|---|
-| 二进制 | 15.21 MB（含两套引擎，treesitter 约占 7.7MB） |
-| 1MB JS 端到端 | goja 1.7s / treesitter 3.1s |
+| 二进制 | 23.74 MB（含执行兜底；treesitter 符号段约 4.1 MB） |
+| 1MB JS 端到端 | goja 1.7s / treesitter 3.1s（27 KB 文件实测 16.6 ms） |
 
 ESM 必须靠它（`ESM-ANALYSIS.md`），但不能删。可优化方向是「只编 JS 语法的裁剪构建」，
 未做评估。
@@ -223,7 +244,12 @@ ESM 必须靠它（`ESM-ANALYSIS.md`），但不能删。可优化方向是「�
 
 ## 三、工程与文档
 
-### P1-8 import 别名导致 HTTP 方法丢失
+### P1-8 import 别名导致 HTTP 方法丢失（✅ 已修复 2026-11-06）
+
+实现：`jsext/treesitter/imports.go` 解析 import 三种形态建立
+`本地名 → (模块, 原名)` 映射，模块需像 HTTP 客户端且原名是动词才给结论。
+已知限制：`import { delete as del }` 这类关键字做导入名的写法，tree-sitter 会把
+整条 import 解析成 ERROR 节点，绑定与模块路径都拿不到。
 
 ```js
 import { get as fetchIt } from "axios";
@@ -237,7 +263,11 @@ URL 能拿到，但 `method` 为空：`fetchIt` 既不在 `httpClients` 表里�
 约 30 行，不需要符号表。压缩产物里多已退化成 `(0,n.get)`，靠动词判定可命中，
 所以影响集中在未压缩 ESM。
 
-### P2-1 内存没有上限
+### P2-1 内存没有上限（✅ 已修复 2026-11-06）
+
+实现：`frontier.Options.MaxSeen`（默认 200000，`-max-seen` 可调），
+达上限后拒绝新 URL 并计数，`Crawl` 结束时通过 `OnError` 上报一次。
+`results` 仍未加上限——它由 `MaxURLs` 间接约束，规模远小于 `seen`。
 
 `results` 与 `seen` 全常驻内存。1MB 输入在 routegraph 里约 6.7MB 分配（已优化过），
 但默认 `Concurrency=10` × `MaxBodySize=2MB` × 语法树的峰值**从未测量**。
@@ -249,7 +279,11 @@ URL 能拿到，但 `method` 为空：`fetchIt` 既不在 `httpClients` 表里�
 `baseline.py diff` 仍可用（依赖归一化后的 `urls-*.txt`），但**换口径重新归一化**和
 「原始证据复查」的能力没有了。MANIFEST 已注明，未重建。
 
-### P2-3 CLI 零测试
+### P2-3 CLI 零测试（✅ 已修复 2026-11-06）
+
+实现：flag 定义与映射抽到 `cmd/assetcrawler/flags.go` 的 `parseArgs`，
+`flags_test.go` 用 6 个用例锁定默认值、23 个 flag 的接线、scope 三档、
+`-H` 解析、错误路径。cmd 包覆盖率 0% → 53%。
 
 flag 组合（`-no-js` / `-no-chunk-graph` / `-js-engine` / `-route-exec` 与 Options 的映射）
 没有任何自动化覆盖，只有手工验证。
