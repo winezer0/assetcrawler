@@ -60,7 +60,7 @@ func FromCSS(content string) []Request {
 	seen := make(map[string]struct{}, 16)
 	for _, m := range cssURLRe.FindAllStringSubmatch(content, -1) {
 		raw := strings.TrimSpace(m[1])
-		if raw == "" || strings.HasPrefix(raw, "data:") {
+		if !cssRefUsable(raw) {
 			continue
 		}
 		if _, dup := seen[raw]; dup {

@@ -368,3 +368,42 @@ func TestFormParams(t *testing.T) {
 		t.Errorf("/login 参数 = %v，期望含 username/password", login.Params)
 	}
 }
+
+// TestCSSFragmentRefSkipped 验证 url(#id) 这类同文档引用不被当成资产。
+//
+// 实测 vuejs.org 上，CSS 里的 `url(#SVGxxx)` 被解析成
+// /assets/%23SVGxxx，一个站点就贡献 32 条 404。
+func TestCSSFragmentRefSkipped(t *testing.T) {
+	const css = `.a{fill:url(#SVGfilter)} .b{background:url(/static/bg.png)}
+.c{background:url(#grad1)} .d{background:url(./rel.svg)}
+.e{background:url(data:image/png;base64,AAA)}`
+	for _, r := range FromCSS(css) {
+		switch {
+		case strings.Contains(r.Raw, "#"), strings.HasPrefix(r.Raw, "data:"):
+			t.Errorf("不应收集 %q", r.Raw)
+		}
+	}
+	got := map[string]bool{}
+	for _, r := range FromCSS(css) {
+		got[r.Raw] = true
+	}
+	for _, want := range []string{"/static/bg.png", "./rel.svg"} {
+		if !got[want] {
+			t.Errorf("缺少 %q，实际: %v", want, got)
+		}
+	}
+}
+
+// TestStyleAttrFragmentSkipped 覆盖内联 style 属性里的同类引用。
+func TestStyleAttrFragmentSkipped(t *testing.T) {
+	const body = `<html><body>
+<div style="fill:url(#f1);background:url(/img/a.png)"></div>
+<svg><style>.x{clip-path:url(#clip)}</style></svg>
+</body></html>`
+	doc := parseHTML(t, body)
+	for _, r := range FromHTML(doc, DefaultOptions()) {
+		if strings.Contains(r.Raw, "#") {
+			t.Errorf("style 里的片段引用被收集了: %q (source=%s)", r.Raw, r.Source)
+		}
+	}
+}

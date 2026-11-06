@@ -30,7 +30,7 @@
 原因见 `ESM-ANALYSIS.md`：Vite 站点入口 chunk 是 ESM，goja 100% 解析失败，
 而 treesitter 全能但慢。串联后两者都不牺牲。
 
-### P0-2 真实站点验证（当前最大盲区）
+### P0-2 真实站点验证（✅ 部分完成 2026-11-06）
 
 **问题**：所有 SPA 验证都基于 `testdata/spa_fixture.py` / `vue_fixture.py` /
 `dynamic_fixture.py`，而这些夹具是**照着实现写的**。存在确认偏误：

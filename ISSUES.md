@@ -145,14 +145,41 @@ axios.post("/api/create",{name:"x",age:2})         →  /api/create（未改写�
 ESM 必须靠它（`ESM-ANALYSIS.md`），但不能删。可优化方向是「只编 JS 语法的裁剪构建」，
 未做评估。
 
-### P1-6 真实站点样本太少，没有可回归基线
+### P1-6 真实站点样本太少，没有可回归基线（✅ 已修复）
 
 目前只有 `testasp.vulnweb.com` 一个基线，且它是 2000 年代的 ASP 站。
 现代站点只在 2026-11-06 对 `vuejs.org` 抽测过一次（16 个 JS 全 200），**结果没有固化**，
 下次改动无法判断是变好还是变坏。
 
-**修法**：把 `vuejs.org` 的抽测结果按 `tools/baseline/` 的格式存一份；
-再补一个 Vite 站点（`vite.dev`）与一个传统站。成本：半天。
+**已修**：在 `tools/baseline/` 下新增两份现代站基线
+（`vuejs.org-2026-11-06`、`vite.dev-2026-11-06`），并在同一目录写了 MANIFEST。
+
+现代站的文件名带内容哈希，每次部署都变，因此额外产出
+`urls-stable.txt`（把 `.<hash>.` 归一成 `.<HASH>.`）用于回归对比；
+`urls-all.txt` 只在同一次部署内可比。
+
+**采集当天就抓出三类噪音，已修复**（见下）：
+
+| 站点 | 修复前 404 | 修复后 |
+|---|---:|---:|
+| vuejs.org | 32 | **8** |
+| vite.dev | 11 | **3** |
+
+### P1-7 三类误报（✅ 已修复，2026-11-06）
+
+由新基线发现，均为真实站点上的命中：
+
+| 现象 | 根因 | 修法 |
+|---|---|---|
+| `/assets/%23SVGxxx` 大量 404 | data URI 内联 SVG 里的 `url(%23filter)` 是同文档引用，被当成资源路径 | CSS 引用过滤补 `#` 与 `%23` |
+| `/assets/chunks/assets/chunks/x.js` | `__vite__mapDeps` 元素是相对站点根的 `assets/chunks/x.js`，被按模块文件解析 | 数组元素补前导斜杠 |
+| `/framework.js`、`/assets.LcogJ1e5.js` | mapDeps 扫描了全文件字符串，把 `from"./framework.js"` 也锚定了 | 限定在 `__vite__mapDeps` 的数组字面量内 |
+| `/assets/text/plain`、`/modulepreload`、`/assets/Running...`、`/*` | JS 里的 MIME、link rel、UI 文案、通配符被当成路径 | 新增 `nonURLLiteral` 过滤 |
+
+三条都有单测：`TestCSSFragmentRefSkipped`、`TestViteMapDepsScopedToArray`、
+`TestNonURLLiterals`。
+
+修复后 JS 文件的 200 命中率：vuejs.org 17/17、vite.dev 38/38。
 
 ---
 
@@ -215,7 +242,8 @@ flag 组合（`-no-js` / `-no-chunk-graph` / `-js-engine` 与 Options 的映射�
 | 1 | P0-1 参数不要写进 URL | ✅ 2026-11-06 |
 | 2 | P0-2 sitemap 与配额 | ✅ 2026-11-06 |
 | 3 | P0-3 fetcher 单测 | ✅ 2026-11-06（覆盖率 74.3%） |
-| 4 | P1-6 固化现代站基线 | 待做（下一步） |
+| 4 | P1-6 固化现代站基线 | ✅ 2026-11-06（vuejs.org / vite.dev） |
+| 4.5 | P1-7 三类误报 | ✅ 2026-11-06（404：32→8 / 11→3） |
 | 5 | P1-1 CSP，其余打包 | 待做 |
 | 6 | P1-2 / P1-3 / P1-4 | 视真实数据决定 |
 | 7 | P2 系列 | 随手清理 |

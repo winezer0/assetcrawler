@@ -126,3 +126,37 @@ func urlsOnly(reqs []jsext.Request) []string {
 	}
 	return out
 }
+
+// TestNonURLLiterals 防止把「像路径但不是地址」的字面量当成资产。
+//
+// 实测来源：Vite 站点 JS 里的 "text/plain"、"modulepreload"、"Running..."、"/*"。
+func TestNonURLLiterals(t *testing.T) {
+	src := []byte(`var a="text/plain";var b="modulepreload";var c="Running...";
+var d="/*";fetch("/api/real");`)
+	for name, fn := range map[string]jsext.Engine{"goja": goja.Extract, "treesitter": treesitter.Extract} {
+		reqs, err := fn(src)
+		if err != nil {
+			t.Fatalf("%s: %v", name, err)
+		}
+		var urls []string
+		for _, r := range reqs {
+			urls = append(urls, r.URL)
+		}
+		for _, bad := range []string{"text/plain", "modulepreload", "Running...", "/*"} {
+			for _, u := range urls {
+				if u == bad {
+					t.Errorf("%s: 非 URL 字面量被收集: %q", name, bad)
+				}
+			}
+		}
+		found := false
+		for _, u := range urls {
+			if u == "/api/real" {
+				found = true
+			}
+		}
+		if !found {
+			t.Errorf("%s: 正常路径 /api/real 丢失，实际 %v", name, urls)
+		}
+	}
+}

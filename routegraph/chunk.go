@@ -468,31 +468,52 @@ func splitTemplate(s string) []tmplSeg {
 // Vite 会把 `__vite__mapDeps` 的数组直接写在入口文件里，
 // 元素就是形如 `assets/Admin.a1b2c3.js` 的相对路径。
 func (tl *tokenList) viteChunks() []Chunk {
-	hasVite := false
-	for i := range tl.toks {
-		if tl.identHasPrefix(i, "__vite__") {
-			hasVite = true
-			break
-		}
-	}
-	if !hasVite {
-		return nil
-	}
+	// 只在 `__vite__mapDeps` 的**数组字面量**里取，不能扫全文件的字符串：
+	// 文件里还有 `from"./framework.js"` 这类导入说明符，
+	// 它们是相对当前模块的，按站点根锚定会拼出 /framework.js 这种 404。
 	var out []Chunk
 	seen := map[string]struct{}{}
+
 	for i := range tl.toks {
-		if tl.kind(i) != TokString {
+		if !tl.identHasPrefix(i, "__vite__") {
 			continue
 		}
-		v := tl.value(i)
-		if !looksLikeChunkPath(v) {
+		// 找到紧随其后的数组起始，再配平到结尾
+		open := -1
+		for j := i + 1; j < len(tl.toks) && j < i+400; j++ {
+			if tl.is(j, "[") {
+				open = j
+				break
+			}
+			if tl.is(j, ")") || tl.is(j, ";") {
+				break
+			}
+		}
+		if open < 0 {
 			continue
 		}
-		if _, dup := seen[v]; dup {
+		close := tl.matchClose(open)
+		if close < 0 {
 			continue
 		}
-		seen[v] = struct{}{}
-		out = append(out, Chunk{Path: v, Source: "vite.mapDeps"})
+		for j := open; j < close; j++ {
+			if tl.kind(j) != TokString {
+				continue
+			}
+			v := tl.value(j)
+			if !looksLikeChunkPath(v) {
+				continue
+			}
+			// 数组元素相对 base（站点根），补前导斜杠后再交给 frontier。
+			if !strings.HasPrefix(v, "/") {
+				v = "/" + v
+			}
+			if _, dup := seen[v]; dup {
+				continue
+			}
+			seen[v] = struct{}{}
+			out = append(out, Chunk{Path: v, Source: "vite.mapDeps"})
+		}
 	}
 	return out
 }

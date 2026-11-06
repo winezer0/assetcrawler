@@ -200,6 +200,30 @@ func formParamNames(form *html.Node) []string {
 	return out
 }
 
+// cssRefUsable 判断 url(...) 里的引用是否值得当资产。
+//
+// `url(#filter)` 是同一文档内的 SVG / 渐变引用，按 URL 解析会得到
+// `/assets/%23filter` 这种必然 404 的地址——实测 vuejs.org 上因此产生 32 条 404。
+// `data:`、`about:` 同理。
+func cssRefUsable(raw string) bool {
+	raw = strings.TrimSpace(raw)
+	switch {
+	case raw == "":
+		return false
+	case strings.HasPrefix(raw, "#"):
+		return false
+	case strings.HasPrefix(raw, "%23"):
+		// 百分号编码的 #：常见于 data URI 内联 SVG 里的
+		// `url(%23filter)`，那是同文档引用，不是资源路径。
+		return false
+	case strings.HasPrefix(raw, "data:"):
+		return false
+	case strings.HasPrefix(raw, "about:"):
+		return false
+	}
+	return true
+}
+
 // ParseSrcset 解析 srcset，返回其中每个候选资源的地址（丢弃宽度/密度描述符）。
 func ParseSrcset(v string) []string {
 	var out []string
@@ -308,6 +332,9 @@ func FromHTML(doc *html.Node, o Options) []Request {
 		if o.ExtractStyle {
 			if st, ok := AttrVal(n, "style"); ok {
 				for _, m := range cssURLRe.FindAllStringSubmatch(st, -1) {
+					if !cssRefUsable(m[1]) {
+						continue
+					}
 					out = append(out, Request{Raw: m[1], Method: http.MethodGet, Source: "style-attr", Attribute: "style", Tag: tag})
 				}
 			}
@@ -320,6 +347,9 @@ func FromHTML(doc *html.Node, o Options) []Request {
 					continue
 				}
 				for _, m := range cssURLRe.FindAllStringSubmatch(c.Data, -1) {
+					if !cssRefUsable(m[1]) {
+						continue
+					}
 					out = append(out, Request{Raw: m[1], Method: http.MethodGet, Source: "style-block", Attribute: "style", Tag: tag})
 				}
 			}

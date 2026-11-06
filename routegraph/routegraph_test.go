@@ -60,9 +60,19 @@ func TestViteMapDeps(t *testing.T) {
 	for _, c := range res.Chunks {
 		got[c.Path] = true
 	}
-	for _, want := range []string{"assets/Admin.a1b2c3.js", "assets/Login.d4e5f6.js", "assets/index.7f8e9d.css"} {
+	// mapDeps 的元素相对 base（站点根），必须补上前导斜杠：
+	// 否则在模块文件（/assets/chunks/x.js）下解析会变成
+	// /assets/chunks/assets/chunks/... 这种重复前缀，实测全部 404。
+	for _, want := range []string{
+		"/assets/Admin.a1b2c3.js", "/assets/Login.d4e5f6.js", "/assets/index.7f8e9d.css",
+	} {
 		if !got[want] {
 			t.Errorf("缺少 vite chunk %s，实际: %v", want, got)
+		}
+	}
+	for p := range got {
+		if !strings.HasPrefix(p, "/") {
+			t.Errorf("vite chunk 路径 %q 未锚定到站点根", p)
 		}
 	}
 }
@@ -175,5 +185,31 @@ func TestTruncationReported(t *testing.T) {
 	res := Extract(big)
 	if !res.Truncated {
 		t.Fatalf("6MB 输入应当标记截断（token 上限 %d）", maxTokens)
+	}
+}
+
+// TestViteMapDepsScopedToArray 确认只取 mapDeps 数组内的元素。
+//
+// 早期实现扫全文件的字符串字面量，把 `from"./framework.js"` 这类导入说明符
+// 也按站点根锚定，拼出 /framework.js —— 站点上并不存在，实测 404。
+func TestViteMapDepsScopedToArray(t *testing.T) {
+	src := `const __vite__mapDeps=(i,m=__vite__mapDeps,d=(m.f||(m.f=["assets/chunks/A.js","assets/chunks/B.js"])))=>i.map(i=>d[i]);
+import{f}from"./framework.Mlkvh5rC.js";import{g}from"./chunks/C.js";`
+	res := Extract([]byte(src))
+
+	got := map[string]string{}
+	for _, c := range res.Chunks {
+		got[c.Path] = c.Source
+	}
+	for _, want := range []string{"/assets/chunks/A.js", "/assets/chunks/B.js"} {
+		if _, ok := got[want]; !ok {
+			t.Errorf("缺少 %s，实际: %v", want, got)
+		}
+	}
+	// 导入说明符不是 mapDeps，不应出现在这里（它们由 import 收集负责）
+	for _, bad := range []string{"/framework.Mlkvh5rC.js", "/./framework.Mlkvh5rC.js", "/chunks/C.js"} {
+		if _, ok := got[bad]; ok {
+			t.Errorf("导入说明符被误当成 mapDeps: %s", bad)
+		}
 	}
 }

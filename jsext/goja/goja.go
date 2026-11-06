@@ -578,8 +578,38 @@ func (e *extractor) collectComments(src []byte) {
 }
 
 // urlLike 判断字符串是否像一个可采集的地址，过滤掉文案、类名等噪音。
+// mimeRe 匹配 MIME 类型（text/plain、application/json）。
+var mimeRe = regexp.MustCompile(`^[a-z][a-z0-9.+-]*/[a-z][a-z0-9.+-]*$`)
+
+// linkRelWords 是 link 的 rel 取值，常作为字符串常量出现在 JS 里。
+var linkRelWords = map[string]bool{
+	"preload": true, "modulepreload": true, "prefetch": true, "preconnect": true,
+	"dns-prefetch": true, "stylesheet": true, "canonical": true, "alternate": true,
+	"icon": true, "manifest": true, "noopener": true, "noreferrer": true,
+}
+
+// nonURLLiteral 判断字面量是否属于「像路径但其实不是地址」的常见形态。
+//
+// 实测在 Vite 站点的 JS 里，`"text/plain"`、`"modulepreload"`、`"Running..."`
+// 都会被当成候选，解析成 /assets/text/plain 这类必然 404 的地址。
+func nonURLLiteral(s string) bool {
+	if mimeRe.MatchString(s) {
+		return true
+	}
+	if linkRelWords[strings.ToLower(s)] {
+		return true
+	}
+	if strings.Contains(s, "...") { // 省略号，UI 文案
+		return true
+	}
+	if strings.ContainsAny(s, "*") { // 通配（含正则片段 /* ）
+		return true
+	}
+	return false
+}
+
 func urlLike(s string) bool {
-	if s == "" || len(s) > 2048 {
+	if s == "" || len(s) > 2048 || nonURLLiteral(s) {
 		return false
 	}
 	if strings.ContainsAny(s, " \t\n\r") {
