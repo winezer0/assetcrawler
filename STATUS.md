@@ -17,7 +17,7 @@
 | 直接依赖 | 3 个（goja / gotreesitter / x/net） |
 | 默认二进制 | 15.22 MB |
 | `-tags routeexec` | 23.70 MB |
-| 未推送提交 | 12 个 |
+| 推送状态 | `5a54566` 已全部推送到 origin/main |
 
 覆盖率还有两个 0%：`fetcher` 与 `cmd/assetcrawler` 没有测试文件。
 `jsext/goja`、`jsext/treesitter` 显示 0% 是统计口径——用例写在 `jsext` 包做黑盒测试。
