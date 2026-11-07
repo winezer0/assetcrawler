@@ -372,7 +372,15 @@ func FromHTML(doc *html.Node, o Options) []Request {
 				}
 			}
 			if sb.Len() > 0 {
-				out = append(out, FromJS(sb.String(), o)...)
+				src := sb.String()
+				// Next.js App Router 的 RSC 流优先用专用解析：
+				// payload 是转义过的 JSON 片段，走通用正则会把它当普通字符串，
+				// 丢掉 chunk 与页面路径的结构（实测单页 240 个 chunk 全在里面）。
+				if LooksLikeNextFlight(src) {
+					out = append(out, FromNextFlight(src)...)
+				} else {
+					out = append(out, FromJS(src, o)...)
+				}
 			}
 		}
 

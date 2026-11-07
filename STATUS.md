@@ -1,6 +1,6 @@
 # 实施情况
 
-日期：2026-11-06 20:40
+日期：2026-11-07 22:40
 代码：`CSP 线索接入` 系列，全部改动**未推送**到 origin
 所有数字均为本地实测，未验证的会明确标注。
 
@@ -22,7 +22,7 @@
 | 包 | 覆盖率 | 说明 |
 |---|---:|---|
 | `csp` | 86.3% | CSP / Report-To 响应头解析，纯函数 |
-| `extractor` | 84.8% | HTML / 头 / CSS / JSON / 表单 / sourcemap |
+| `extractor` | 84.8% | HTML / 头 / CSS / JSON / 表单 / sourcemap / Next RSC |
 | `routegraph` | 82.6% | 词法、chunk、路由表、截断、执行兜底 |
 | `jsext` | 81.2%（`-coverpkg` 82.1%） | 两个引擎的黑盒测试 |
 | `crawler`（顶层编排） | 78.9% | 端到端 + 配额 + 引擎链 + 路由展开 |
@@ -59,7 +59,9 @@
 | `163fc07` | **B** og/twitter、`data-*`、sourcemap sources | 探针 13→17/19 |
 | `12aa8ee` | **C** 配置对象形状判定、表单取值、路由实例化 | 新增 4 组用例，含开关两态 |
 | `fdee640` | **D** CLI 表驱动测试、CI、内存上限 | cmd 覆盖率 0→53% |
-| 待提交 | **CSP 线索接入采集流程**（只报告不入队） | 探针 17→19/19 |
+| `0f95456` | **CSP 线索接入采集流程**（只报告不入队） | 探针 17→19/19 |
+| `2b9ca96` | route-expand 实测：SPA 上零增量，保持默认关闭 | antdv 的 `/1` 与首页 md5 相同 |
+| 本轮 | **Next.js App Router 的 RSC 流解析**（`extractor/nextjs.go`） | nextjs.org 80→140 条 |
 
 ## 五、验收数据
 
@@ -91,6 +93,7 @@
 | 已见集合上限 | `-max-seen`（默认 200000） | 超出后拒绝入队并在结束时上报，不静默截断 |
 | 执行兜底 | `-route-exec` | 默认关闭：会执行目标站代码 |
 | CSP 线索 | `-no-csp` 可关 | 输出 `csp-source` / `csp-report`，**只报告不入队** |
+| Next.js RSC | 默认开启 | 从 `self.__next_f.push` 提取页面路径与 chunk，补 `/_next/` 前缀 |
 
 ## 七、CSP 接入的口径（复盘）
 
@@ -128,7 +131,31 @@ SPA 的 history fallback 让所有路径返回同一份 `index.html`；不发请
 结论：**这条能力保留但不默认开**，它的价值要到「服务端按路径渲染不同内容、
 且路径带 :param」的站点上才成立，这一类目前没有样本。
 
-## 九、明确未做
+## 九、Next.js（App Router）支持
+
+Next.js 用文件路由，产物里没有 routes 数组——但它把整个服务端组件树序列化进
+`<script>self.__next_f.push([1,"..."])</script>`，里面同时有 chunk 路径和页面路径。
+
+解析要点（都踩过）：
+
+- **chunk 引用有一半省略 `/_next/` 前缀**：同一份 payload 里
+  `"/_next/static/chunks/a.js"` 与 `"static/chunks/b.js"` 混着出现，
+  后者按固定目录约定补回。
+- **URL 前缀常写成 `\/`**：用 `strconv.Unquote` 会整段失败，需要自己处理 JS 转义。
+- **不需要跨片段拼接**：单段 payload 里已经是完整路径值。
+
+实测 nextjs.org 首页（`-d 1 -max-urls 120`）：
+
+| 指标 | 接入前 | 接入后 |
+|---|---:|---:|
+| 结果数 | 80 | **140** |
+| chunk | 0 | 21 |
+| 新增 404 | 0 | 7 |
+
+7 条 404 来自 payload 里的旧导航引用（`/about`、`/oss`、`/llm-digest`），
+手动 curl 也是 404，属于站点自己的死链，不是提取错误。
+
+## 十、明确未做
 
 | 项 | 原因 |
 |---|---|
@@ -140,7 +167,7 @@ SPA 的 history fallback 让所有路径返回同一份 `index.html`；不发请
 以上都在 `ISSUES.md` 里按 P0/P1/P2 分级，并标了证据与修法成本；
 下一步延伸见 `ROADMAP.md`。
 
-## 十、仓库状态
+## 十一、仓库状态
 
 - 相对 `origin/main` 有未推送提交，以 `git status` 为准
 - 工作区干净，`gofmt` / `go vet` 无输出，`go test -race ./...` 全绿

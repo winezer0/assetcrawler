@@ -277,6 +277,18 @@ URL 能拿到，但 `method` 为空：`fetchIt` 既不在 `httpClients` 表里�
 约 30 行，不需要符号表。压缩产物里多已退化成 `(0,n.get)`，靠动词判定可命中，
 所以影响集中在未压缩 ESM。
 
+### P1-9 sitemap 与 JS 资源竞争配额（判定为取舍，不改）
+
+实测 angular.dev：`-max-urls 120` 时 sitemap 占 91 条，main.js 解析出的
+240 个 chunk 只进了 12 个；把配额开到 200 仍是同样比例。
+
+原因不是调度顺序出错（sitemap 任务确实 append 在种子资源之后），
+而是并发执行时小页面返回快、先抢到 `reserveFetch` 的名额。
+
+**不改的理由**：sitemap 里是真页面，JS 里是接口，取舍取决于目标，
+不该硬编码。要给接口就把 `-max-urls` 开到 300 以上——vuejs 基线在 300 配额下
+sitemap 只占 37%，两者都有空间。已写入 README 的框架支持一节。
+
 ### P2-1 内存没有上限（✅ 已修复 2026-11-06）
 
 实现：`frontier.Options.MaxSeen`（默认 200000，`-max-seen` 可调），

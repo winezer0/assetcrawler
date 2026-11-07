@@ -130,6 +130,23 @@ assetcrawler -u https://target/ -route-exec
 ESM/Vite 产物完全不支持（goja 不认 `import`/`export`，连动态 `import()` 都报语法错误）；
 必须带超时（默认 2 秒），因为它在运行目标站的代码。
 
+**前端框架支持**
+
+| 层 | 已适配 | 靠通用提取兜住 |
+|---|---|---|
+| 构建产物 | webpack 4/5（`u` 函数、`publicPath`、自注册 chunk）、Vite/Rollup（ESM、`mapDeps`、动态 `import()`） | Turbopack、Angular CLI、esbuild、Parcel |
+| 前端路由 | 显式路由表（`{path, component/name/lazy/children}`），覆盖 vue-router、react-router 配置式、Angular Router | 文件路由框架：Next.js 走 RSC 流，Nuxt/SvelteKit 靠 sitemap 与 HTML 链接 |
+
+几个实测结论：
+
+- 现代框架普遍用 `<link rel="modulepreload">` 把懒加载 chunk 列在 HTML 里，
+  比从 runtime 反推更可靠——所以我们从 `u` 函数恢复的能力，主要对**老 webpack 站点**有价值。
+- Next.js（App Router）的 RSC 流是文件路由框架里**唯一结构化暴露导航结构**的地方，
+  已专门解析（`extractor/nextjs.go`），实测单页能多拿 60 条。
+- 配额很小时（如 `-max-urls 120`），sitemap 页面会先占满队列：
+  angular.dev 实测 sitemap 91 条、main.js 解析出的 240 个 chunk 只进了 12 个。
+  这是「页面优先」的取舍，不是缺陷；要接口就把配额开大（300 以上）。
+
 **CSP 响应头（输出线索，不入队）**
 
 `csp` 包解析 `Content-Security-Policy` / `CSP-Report-Only` / `Report-To` /
