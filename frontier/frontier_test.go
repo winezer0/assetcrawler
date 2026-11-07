@@ -158,3 +158,19 @@ func TestPushFilteredByScope(t *testing.T) {
 		t.Error("out-of-scope URL should be rejected")
 	}
 }
+
+// TestNormalizeRelativeToModuleBase 锁定「相对模块路径」的解析契约：
+// routegraph 对 Nuxt 的 "./x.js" 保留原样，由这里以当前 JS 的 URL 解析。
+func TestNormalizeRelativeToModuleBase(t *testing.T) {
+	base := mustURL(t, "https://nuxt.com/_nuxt/CfoxLZfe.js")
+	for raw, want := range map[string]string{
+		"./DPFkMy5C.js":     "https://nuxt.com/_nuxt/DPFkMy5C.js",
+		"../shared/D4e5.js": "https://nuxt.com/shared/D4e5.js",
+		"/assets/x.js":      "https://nuxt.com/assets/x.js",
+	} {
+		u, ok := Normalize(raw, base)
+		if !ok || u.String() != want {
+			t.Errorf("Normalize(%q) = (%v, %v)，期望 %s", raw, u, ok, want)
+		}
+	}
+}

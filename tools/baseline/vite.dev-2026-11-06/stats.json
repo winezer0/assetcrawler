@@ -1,0 +1,28 @@
+{
+  "target_host": "vite.dev",
+  "generated_at": "2026-11-06 21:05",
+  "tools": {
+    "hakrawler": {
+      "status": "no_output"
+    },
+    "gospider": {
+      "status": "no_output"
+    },
+    "cariddi": {
+      "status": "no_output"
+    },
+    "URLFinder-m1": {
+      "status": "no_output"
+    },
+    "URLFinder-m2": {
+      "status": "no_output"
+    },
+    "assetcrawler": {
+      "status": "ok",
+      "inside_unique": 293,
+      "outside_unique": 1,
+      "raw_count": 297
+    }
+  },
+  "union_inside": 293
+}

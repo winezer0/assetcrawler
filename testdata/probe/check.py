@@ -2,35 +2,77 @@
 # -*- coding: utf-8 -*-
 """check.py —— URL 载体验收夹具的一键检查。
 
-起本地桩服务 → 跑资产采集器 → 与 expected.json 对比 → 输出进度报告。
+起本地桩服务 → 校验服务身份 → 跑资产采集器 → 与 expected.json 对比 → 输出进度报告。
 
 用法：
   python check.py
   python check.py --bin ../../assetcrawler.exe
-  python check.py --verbose        # 打印每个用例的明细
+  python check.py --port 18081       # 指定端口
+  python check.py --verbose          # 打印每个用例的明细
 
-退出码：全部达标为 0，否则 1（可挂 CI）。
+端口策略：默认端口被占用时自动换一个空闲端口；显式 --port 被别的程序占用时
+由身份校验直接报错，绝不「连上谁就测谁」。
+
+退出码：无回归为 0，否则 1（可挂 CI）。
 """
 import argparse
 import json
 import os
+import socket
 import subprocess
 import sys
 import time
 import urllib.error
 import urllib.request
 
+from common import DEFAULT_PORT, PING_PATH, PROBE_MARKER
+
 HERE = os.path.dirname(os.path.abspath(__file__))
-TARGET = "http://127.0.0.1:18080/"
 ROOT = os.path.dirname(os.path.dirname(HERE))  # 仓库根
 
 
-def wait_ready(timeout=10):
+class ProbeIdentityError(Exception):
+    """端口上跑的不是本夹具的桩服务。"""
+
+
+def target_url(port):
+    return f"http://127.0.0.1:{port}/"
+
+
+def port_in_use(port):
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+        s.settimeout(0.3)
+        return s.connect_ex(("127.0.0.1", port)) == 0
+
+
+def pick_port(preferred=0):
+    """显式端口照用；否则默认端口空闲就用它，被占用就换一个空闲端口。"""
+    if preferred:
+        return preferred
+    if not port_in_use(DEFAULT_PORT):
+        return DEFAULT_PORT
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+        s.bind(("127.0.0.1", 0))
+        return s.getsockname()[1]
+
+
+def wait_ready(base, timeout=10):
+    """等服务就绪，并确认它确实是我们的桩服务。
+
+    只探「端口通不通」是不够的：任何本地服务都会响应根路径，那样会静默
+    测错目标、报出大面积假回退。这里改为请求 PING_PATH 校验固定标记。
+    """
+    url = base + PING_PATH.lstrip("/")
     deadline = time.time() + timeout
     while time.time() < deadline:
         try:
-            urllib.request.urlopen(TARGET, timeout=1)
-            return True
+            with urllib.request.urlopen(url, timeout=1) as resp:
+                body = resp.read().decode("utf-8", "replace").strip()
+                if body != PROBE_MARKER:
+                    raise ProbeIdentityError(f"{url} 返回了未知标记 {body!r}")
+                return True
+        except urllib.error.HTTPError as e:
+            raise ProbeIdentityError(f"{url} 返回 HTTP {e.code}，不是本夹具的桩服务") from e
         except (urllib.error.URLError, ConnectionError, OSError):
             time.sleep(0.3)
     return False
@@ -41,6 +83,8 @@ def main():
     ap.add_argument("--bin", default=os.path.join(ROOT, "assetcrawler.exe"),
                     help="资产采集器路径")
     ap.add_argument("--verbose", action="store_true")
+    ap.add_argument("--port", type=int, default=0,
+                    help="桩服务端口（默认自动选空闲端口）")
     ap.add_argument("--js-engine", default=None,
                     help="传给采集器的 -js-engine（regex | goja | treesitter）")
     args = ap.parse_args()
@@ -48,20 +92,25 @@ def main():
     if not os.path.exists(args.bin):
         sys.exit(f"找不到采集器: {args.bin}（先 go build -o assetcrawler.exe ./cmd/assetcrawler）")
 
-    server = subprocess.Popen([sys.executable, os.path.join(HERE, "server.py")],
+    port = pick_port(args.port)
+    base = target_url(port)
+    server = subprocess.Popen([sys.executable, os.path.join(HERE, "server.py"), str(port)],
                               stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     out_file = os.path.join(HERE, "_probe_result.jsonl")
     try:
-        if not wait_ready():
-            sys.exit("桩服务启动失败（端口 18080 可能被占用）")
+        try:
+            if not wait_ready(base):
+                sys.exit(f"桩服务启动失败（端口 {port} 在 10s 内未就绪）")
+        except ProbeIdentityError as e:
+            sys.exit(f"桩服务身份校验失败：{e}；请检查端口 {port} 是否被其他服务占用")
 
-        cmd = [args.bin, "-u", TARGET, "-d", "3", "-jsonl", "-o", out_file, "-silent"]
+        cmd = [args.bin, "-u", base, "-d", "3", "-jsonl", "-o", out_file, "-silent"]
         if args.js_engine:
             cmd += ["-js-engine", args.js_engine]
         subprocess.run(cmd, check=True, capture_output=True)
 
         rows = [json.loads(l) for l in open(out_file, encoding="utf-8") if l.strip()]
-        got = {r["url"].replace(TARGET.rstrip("/"), ""): r for r in rows}
+        got = {r["url"].replace(base.rstrip("/"), ""): r for r in rows}
 
         def variants(path):
             """路径的等价值：本身、以及带 query 的所有变体。"""
@@ -129,9 +178,8 @@ def main():
         noise = [n for n in exp.get("known_noise", []) if n["url"] in got]
         print(f"[噪音]   {len(noise)} 条残留" + (f"：{[n['url'] for n in noise]}" if noise else ""))
 
-        # 退出码的判定口径是「不回归」，不是「19/19」：
-        # CSP 两项按设计不接入采集流程，永远不会达标；拿 19/19 当门槛
-        # 会让 CI 长期红着，反而没人看。
+        # 退出码的判定口径是「不回归」，不是「满覆盖」：
+        # 将来若出现「按设计不接入」的载体，门槛不该跟着变红。
         regressions = [c for c in cases if c["implemented"] and not variants(c["url"])]
         stale = [c for c in cases if not c["implemented"] and variants(c["url"])]
         if stale:

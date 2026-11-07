@@ -57,6 +57,22 @@ func dedupeChunks(in []Chunk) []Chunk {
 	return out
 }
 
+// bundleMarkers 是「值得跑一遍词法恢复」的粗筛标记，按产物来源分组。
+// 命中任一即可；这里只判必要性，精确性交给后面的规则。
+var bundleMarkers = [][]byte{
+	// webpack 4/5
+	[]byte("__webpack_require__"), []byte("webpackJsonp"), []byte("webpackChunk"), []byte("miniCssF"),
+	// Vite / Rollup（`__vite__mapDeps` 已被 `__vite__` 覆盖）
+	[]byte("__vite__"), []byte("__vitePreload"),
+	// 显式路由表
+	[]byte("createRouter"), []byte("createWebHistory"), []byte("createBrowserRouter"),
+	[]byte("routes:"), []byte("routes="),
+	// 文件路由框架：这些入口不一定带上面两类运行时标记，
+	// 漏掉会让 chunk/路由恢复整段不执行（2026-11-07 在 Nuxt 上确认）。
+	[]byte("__NUXT__"), []byte("_nuxt/"), []byte("_app/immutable/"),
+	[]byte("buildManifest"), []byte("__data.json"),
+}
+
 // LooksLikeBundle 粗判一段脚本是否值得做 chunk/路由恢复。
 //
 // 只做「有没有必要」的判断，不做精确性判断：
@@ -68,12 +84,7 @@ func LooksLikeBundle(src []byte) bool {
 	}
 	// 用 bytes.Contains 而不是先转成 string：body 最大 2MB，
 	// 每个脚本多一次整包拷贝没有意义。
-	for _, mark := range [][]byte{
-		[]byte("__webpack_require__"), []byte("__vite__"), []byte("webpackJsonp"),
-		[]byte("webpackChunk"), []byte("createRouter"), []byte("createWebHistory"),
-		[]byte("createBrowserRouter"), []byte("routes:"), []byte("routes="),
-		[]byte("__vitePreload"), []byte("miniCssF"),
-	} {
+	for _, mark := range bundleMarkers {
 		if bytes.Contains(src, mark) {
 			return true
 		}

@@ -69,3 +69,26 @@ func TestUnescapeJSString(t *testing.T) {
 		}
 	}
 }
+
+// TestFromNextFlightInitStyle 覆盖初始化式接收者。
+func TestFromNextFlightInitStyle(t *testing.T) {
+	const script = `(self.__next_f=self.__next_f||[]).push([1,"1:\"/docs/init\"\n2:\"static/chunks/x.js\"\n"])`
+	got := raws(FromNextFlight(script))
+	for _, want := range []string{"/docs/init", "/_next/static/chunks/x.js"} {
+		if !contains(got, want) {
+			t.Errorf("缺少 %s，实际 %v", want, got)
+		}
+	}
+}
+
+// TestInlineScriptFallsBackWithoutPayload 守住「命中 __next_f 但无 payload」的归零。
+//
+// 初始化脚本里除了 __next_f 还写着普通接口路径；只跑 FromNextFlight 会把
+// 整段脚本丢掉，必须回退到通用 JS 提取。
+func TestInlineScriptFallsBackWithoutPayload(t *testing.T) {
+	doc := parseHTML(t, `<html><body><script>self.__next_f=self.__next_f||[];fetch("/api/from-init-script")</script></body></html>`)
+	got := FromHTML(doc, Options{ExtractJS: true})
+	if !contains(raws(got), "/api/from-init-script") {
+		t.Fatalf("初始化脚本里的普通接口路径被丢弃，实际 %v", raws(got))
+	}
+}

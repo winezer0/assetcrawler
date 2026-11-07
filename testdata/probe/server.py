@@ -1,4 +1,17 @@
-import http.server, socketserver
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""探针夹具的桩服务。
+
+端口由 check.py 传入（不传则用 DEFAULT_PORT），根路径返回验收页面，
+PING_PATH 返回固定标记供 check.py 校验身份。
+"""
+import http.server
+import socketserver
+import sys
+
+from common import DEFAULT_PORT, PING_PATH, PROBE_MARKER
+
+PORT = int(sys.argv[1]) if len(sys.argv) > 1 else DEFAULT_PORT
 
 HTML = """<!DOCTYPE html><html><head>
 <meta property="og:url" content="/shared/og-page">
@@ -19,6 +32,7 @@ HTML = """<!DOCTYPE html><html><head>
   fetch("/api/items", {method:"PUT"});
 </script>
 <script>var mode="debug"; fetch("/api/" + mode + "/config"); fetch("/api/data");</script>
+<script type="application/json" id="__NUXT_DATA__" data-nuxt-data="nuxt-app">[["ShallowReactive",1],"\\/inline-json\\/nuxt-page","\\/inline-json\\/api","Docs","\\/inline-json\\/skip.png"]</script>
 </body></html>"""
 
 CSS = """@font-face{src:url('/fonts/inter.woff2')}
@@ -34,11 +48,18 @@ MAP = '{"version":3,"sources":["webpack:///src/secret-panel.vue","webpack:///src
 
 JSON_BODY = '{"next":"/api/page/2","links":{"self":"/api/items/1","avatar":"/static/u/1.png"}}'
 
+
 class H(http.server.BaseHTTPRequestHandler):
     def log_message(self, *a): pass
+
     def do_GET(self):
         p = self.path.split("?")[0]
-        if p == "/":
+        if p == PING_PATH:
+            self.send_response(200)
+            self.send_header("Content-Type", "text/plain; charset=utf-8")
+            self.end_headers()
+            self.wfile.write(PROBE_MARKER.encode())
+        elif p == "/":
             self.send_response(200)
             self.send_header("Content-Type", "text/html; charset=utf-8")
             # CSP 里常见域名白名单与上报地址
@@ -59,5 +80,6 @@ class H(http.server.BaseHTTPRequestHandler):
         else:
             self.send_response(404); self.end_headers()
 
-with socketserver.TCPServer(("127.0.0.1", 18080), H) as httpd:
+
+with socketserver.TCPServer(("127.0.0.1", PORT), H) as httpd:
     httpd.serve_forever()

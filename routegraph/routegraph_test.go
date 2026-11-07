@@ -213,3 +213,55 @@ import{f}from"./framework.Mlkvh5rC.js";import{g}from"./chunks/C.js";`
 		}
 	}
 }
+
+// TestViteMapDepsRelativeToModule 守住 Nuxt 3 的真实形态。
+//
+// nuxt.com 入口是 /_nuxt/CfoxLZfe.js，mapDeps 里 211 个元素全部写成
+// "./x.js"。以前统一补 "/" 得到 /./x.js → 归一化成 /x.js，整批 404；
+// 现在保留相对形态，由 frontier 以当前 JS 的 URL 为 base 解析。
+func TestViteMapDepsRelativeToModule(t *testing.T) {
+	src := `const __vite__mapDeps=(i,m=__vite__mapDeps,d=(m.f||(m.f=["./A1b2C3.js","../shared/D4e5F6.js","assets/G7h8I9.js","/_nuxt/J0k1L2.js"])))=>i.map(i=>d[i]);`
+	res := Extract([]byte(src))
+
+	got := map[string]bool{}
+	for _, c := range res.Chunks {
+		got[c.Path] = true
+	}
+	for _, want := range []string{"./A1b2C3.js", "../shared/D4e5F6.js", "/assets/G7h8I9.js", "/_nuxt/J0k1L2.js"} {
+		if !got[want] {
+			t.Errorf("缺少 %s，实际: %v", want, got)
+		}
+	}
+	if got["/./A1b2C3.js"] {
+		t.Error("相对模块路径不该被补成 /./ 前缀")
+	}
+}
+
+// TestDynamicImportTemplateLiteral 覆盖 Nuxt 的静态模板 import。
+func TestDynamicImportTemplateLiteral(t *testing.T) {
+	src := "const a=()=>import(`./A1b2C3.js`); const b=()=>import(`./${name}.js`);"
+	res := Extract([]byte(src))
+	got := map[string]bool{}
+	for _, c := range res.Chunks {
+		got[c.Path] = true
+	}
+	if !got["./A1b2C3.js"] {
+		t.Errorf("缺少静态模板 chunk，实际: %v", got)
+	}
+	if got["./${name}.js"] {
+		t.Error("含 ${} 的模板不该静态产出")
+	}
+}
+
+// TestLooksLikeBundleFileRouteMarkers 确认文件路由框架的入口不会被粗筛跳过。
+func TestLooksLikeBundleFileRouteMarkers(t *testing.T) {
+	pad := strings.Repeat("x", 80)
+	for _, mark := range []string{"__NUXT__", "_nuxt/", "_app/immutable/", "buildManifest", "__data.json"} {
+		if !LooksLikeBundle([]byte(pad + mark)) {
+			t.Errorf("标记 %q 未命中", mark)
+		}
+	}
+	if LooksLikeBundle([]byte(pad + "nothing here")) {
+		t.Error("无标记脚本不该命中")
+	}
+}

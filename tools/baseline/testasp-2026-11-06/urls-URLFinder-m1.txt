@@ -1,0 +1,11 @@
+testasp.vulnweb.com/
+testasp.vulnweb.com/Default.asp
+testasp.vulnweb.com/Login.asp?RetURL=/Default.asp?
+testasp.vulnweb.com/Register.asp?RetURL=/Default.asp?
+testasp.vulnweb.com/Search.asp
+testasp.vulnweb.com/Templates/MainTemplate.dwt.asp
+testasp.vulnweb.com/Templatize.asp?item=html/about.html
+testasp.vulnweb.com/showforum.asp?id=0
+testasp.vulnweb.com/showforum.asp?id=1
+testasp.vulnweb.com/showforum.asp?id=2
+testasp.vulnweb.com/text/css

@@ -1,0 +1,43 @@
+{
+  "target_host": "testasp.vulnweb.com",
+  "generated_at": "2026-11-06",
+  "tools": {
+    "hakrawler": {
+      "status": "ok",
+      "inside_unique": 30,
+      "outside_unique": 5,
+      "raw_count": 48
+    },
+    "gospider": {
+      "status": "ok",
+      "inside_unique": 0,
+      "outside_unique": 0,
+      "raw_count": 0
+    },
+    "cariddi": {
+      "status": "ok",
+      "inside_unique": 37,
+      "outside_unique": 0,
+      "raw_count": 37
+    },
+    "URLFinder-m1": {
+      "status": "ok",
+      "inside_unique": 11,
+      "outside_unique": 5,
+      "raw_count": 28
+    },
+    "URLFinder-m2": {
+      "status": "ok",
+      "inside_unique": 28,
+      "outside_unique": 462,
+      "raw_count": 819
+    },
+    "assetcrawler": {
+      "status": "ok",
+      "inside_unique": 44,
+      "outside_unique": 0,
+      "raw_count": 44
+    }
+  },
+  "union_inside": 49
+}

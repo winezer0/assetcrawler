@@ -363,7 +363,9 @@ func FromHTML(doc *html.Node, o Options) []Request {
 			}
 		}
 
-		// 5) 内联 <script> 内容：前后端分离项目常把接口路径直接写死在页面里
+		// 5) 内联 <script> 内容：前后端分离项目常把接口路径直接写死在页面里。
+		//    分派规则集中在 fromInlineScript（hydration JSON / Next RSC / 普通 JS），
+		//    这里只负责把文本节点拼起来，不再夹带解析策略。
 		if o.ExtractJS && strings.EqualFold(tag, "script") {
 			var sb strings.Builder
 			for c := n.FirstChild; c != nil; c = c.NextSibling {
@@ -372,15 +374,7 @@ func FromHTML(doc *html.Node, o Options) []Request {
 				}
 			}
 			if sb.Len() > 0 {
-				src := sb.String()
-				// Next.js App Router 的 RSC 流优先用专用解析：
-				// payload 是转义过的 JSON 片段，走通用正则会把它当普通字符串，
-				// 丢掉 chunk 与页面路径的结构（实测单页 240 个 chunk 全在里面）。
-				if LooksLikeNextFlight(src) {
-					out = append(out, FromNextFlight(src)...)
-				} else {
-					out = append(out, FromJS(src, o)...)
-				}
+				out = append(out, fromInlineScript(n, sb.String(), o)...)
 			}
 		}
 

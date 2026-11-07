@@ -17,7 +17,9 @@ sitemap.xml。不启动无头浏览器，不执行 JavaScript。
 | `hakrawler` / `gospider` / `cariddi` / `URLFinder` | 都是 CLI，核心逻辑在 `main` 包里，无法作为库复用 |
 | `projectdiscovery/urlfinder` | 纯被动（只查存档），完全不访问目标，不是爬虫 |
 
-本包只依赖 `golang.org/x/net`（Go 官方扩展库），`-s -w` 后二进制约 7.1MB。
+直接依赖 3 个：`golang.org/x/net`、`dop251/goja`、`odvcencio/gotreesitter`。
+二进制体积、代码行数、用例数这类可变量由 `python tools/metrics.py` 生成，
+不在文档里写死。
 
 ## 包结构
 
@@ -134,15 +136,24 @@ ESM/Vite 产物完全不支持（goja 不认 `import`/`export`，连动态 `impo
 
 | 层 | 已适配 | 靠通用提取兜住 |
 |---|---|---|
-| 构建产物 | webpack 4/5（`u` 函数、`publicPath`、自注册 chunk）、Vite/Rollup（ESM、`mapDeps`、动态 `import()`） | Turbopack、Angular CLI、esbuild、Parcel |
-| 前端路由 | 显式路由表（`{path, component/name/lazy/children}`），覆盖 vue-router、react-router 配置式、Angular Router | 文件路由框架：Next.js 走 RSC 流，Nuxt/SvelteKit 靠 sitemap 与 HTML 链接 |
+| 构建产物 | webpack 4/5（`u` 函数、`publicPath`、自注册 chunk）、Vite/Rollup（ESM、`mapDeps`、动态 `import()`、静态模板；`./x.js` 按当前模块锚定） | Turbopack、Angular CLI、esbuild、Parcel |
+| 文件路由 / hydration | Next.js App Router RSC 流、Next.js Pages Router `__NEXT_DATA__`、Nuxt `__NUXT_DATA__`、Vue SSR `__INITIAL_STATE__` | SvelteKit 靠 HTML `link` 与 sitemap（实测资产已覆盖） |
+| 前端路由 | 显式路由表（`{path, component/name/lazy/children}`），覆盖 vue-router、react-router 配置式、Angular Router | 纯文件路由框架仍靠 sitemap 与 HTML 链接 |
 
 几个实测结论：
 
 - 现代框架普遍用 `<link rel="modulepreload">` 把懒加载 chunk 列在 HTML 里，
   比从 runtime 反推更可靠——所以我们从 `u` 函数恢复的能力，主要对**老 webpack 站点**有价值。
-- Next.js（App Router）的 RSC 流是文件路由框架里**唯一结构化暴露导航结构**的地方，
-  已专门解析（`extractor/nextjs.go`），实测单页能多拿 60 条。
+- Next.js（App Router）的 RSC 流把导航结构序列化进 `self.__next_f.push`，
+  已专门解析（`extractor/nextjs.go`），实测单页能多拿 60 条；命中 `__next_f`
+  但没有 payload 的初始化脚本会回退到通用 JS 提取，不会整段归零。
+- Nuxt 3 的 `__NUXT_DATA__` 把斜杠写成 `\u002F`，必须按 JSON 解码后再取
+  字符串值（`extractor/inlinejson.go`）；单份 payload 上限 200 条，并与原有
+  AST 提取合并以免丢掉旧召回。实测 nuxt.com 首页 payload 约 200 KB、
+  含 460 条站内路径。
+- Nuxt 入口的 `__vite__mapDeps` 元素写成 `./x.js`，早期统一补 `/` 会得到
+  `/./x.js` → `/x.js`，整批 211 个 chunk 落空；现在保留相对形态交给
+  frontier 按当前 JS 的 URL 解析。SvelteKit 实测没有额外增量，故不加专属规则。
 - 配额很小时（如 `-max-urls 120`），sitemap 页面会先占满队列：
   angular.dev 实测 sitemap 91 条、main.js 解析出的 240 个 chunk 只进了 12 个。
   这是「页面优先」的取舍，不是缺陷；要接口就把配额开大（300 以上）。
@@ -161,17 +172,22 @@ res.Reports()            // report-uri / report-to / reporting-endpoints 的上�
 res.URLs()               // 可抓取的 URL（跳过通配与 scheme-only）
 ```
 
-它是**纯函数库，不被采集流程自动调用**，也不会改动 `extractor` / `crawler` 的行为。
-原因见下：
+`csp` 包本身是纯函数，但**采集流程默认会调用它**（`crawler.go` →
+`emitCSPHints`，`-no-csp` 可关）：把允许的来源主机与上报端点以
+`csp:<directive>` 为 source 输出，**只报告不入队**。理由：
 
-- 命中率一般：实测 `vuejs.org` 只有 `frame-ancestors`、`vite.dev` 与 `github.com` 没有 CSP；
-- 噪音占比高：`developer.mozilla.org` 提取 48 个来源主机，其中同站仅 3 个；
-  `cloudflare.com` 60 个里 59 个是第三方广告/分析域名；
-- 所以「抓哪些」必须由调用方按自己的范围策略决定，而不是默认塞进抓取队列。
+- 来源主机多为域名根，抓取实测 5 个样本只有 1 个 200，抓它只是拿配额换 404；
+- 上报端点常带一次性 token（`report-uri` / `report-to` / `reporting-endpoints`），
+  抓取等于向目标注入伪造上报，但作为资产线索很有价值，例如 Cloudflare 的
+  `https://a.nel.cloudflare.com/report/v4?...`，这类接口在 HTML 与 JS 里都看不到。
 
-真正稳定的增量是**上报端点**（`report-uri` / `report-to`），
-例如 Cloudflare 的 `https://a.nel.cloudflare.com/report/v4?...`——
-这类接口在 HTML 与 JS 里都看不到。
+排除三类：`frame-ancestors`（入站语义，列的是外部父页面）、通配主机（无法定位）、
+同 host 来源（只是重复当前页面）。
+
+早期「48 个主机仅 3 个同站 ⇒ 不接入」的判据**是错的**：非同站主机在默认
+`scope=subdomain` 下本来就会被 frontier 挡掉，不会入队，不该算进噪音。
+改按「接入后结果里多出什么」重测，vuejs.org +1、stripe.com +23，
+于是改为线索接入。完整复盘见 `STATUS.md` / `ISSUES.md`。
 
 **JS 引擎策略（`-js-engine`，默认 `auto`）**
 

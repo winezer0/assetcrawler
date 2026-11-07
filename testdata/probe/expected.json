@@ -1,6 +1,6 @@
 {
   "description": "URL 载体验收夹具。每个条目是一种『URL 可能出现的位置』，implemented 表示当前是否已覆盖。check.py 会校验这个字段与实际是否一致，不一致会打印『记录与实际不符』——记录过期时请更新本文件。",
-  "target": "http://127.0.0.1:18080/",
+  "target": "由 check.py 决定：默认端口空闲则用 18080，否则自动选空闲端口，也可用 --port 指定",
   "cases": [
     {
       "url": "/normal-link",
@@ -95,6 +95,11 @@
     {
       "url": "/src/api/order.js",
       "via": "sourcemap 的 sources 列表",
+      "implemented": true
+    },
+    {
+      "url": "/inline-json/nuxt-page",
+      "via": "script#__NUXT_DATA__ 的 hydration JSON",
       "implemented": true
     }
   ],

@@ -1,0 +1,297 @@
+{"url":"https://vite.dev/","method":"GET","source":"seed","depth":0,"status":200,"content_type":"text/html; charset=UTF-8"}
+{"url":"https://vite.dev/assets/app.CtbPVvaT.js","method":"GET","source":"script","attribute":"src","tag":"script","depth":1,"status":200,"content_type":"application/javascript; charset=UTF-8","referer":"https://vite.dev/"}
+{"url":"https://vite.dev/assets/chunks/theme.Bd2_aQt9.js","method":"GET","source":"link","attribute":"href","tag":"link","depth":1,"status":200,"content_type":"application/javascript; charset=UTF-8","referer":"https://vite.dev/"}
+{"url":"https://vite.dev/assets/chunks/metadata.645018ac.js","method":"GET","source":"script","attribute":"src","tag":"script","depth":1,"status":200,"content_type":"application/javascript; charset=UTF-8","referer":"https://vite.dev/"}
+{"url":"https://vite.dev/assets/style.CqmlJ7bz.css","method":"GET","source":"link","attribute":"href","tag":"link","depth":1,"status":200,"content_type":"text/css; charset=UTF-8","referer":"https://vite.dev/"}
+{"url":"https://vite.dev/assets/chunks/framework.Mlkvh5rC.js","method":"GET","source":"link","attribute":"href","tag":"link","depth":1,"status":200,"content_type":"application/javascript; charset=UTF-8","referer":"https://vite.dev/"}
+{"url":"https://vite.dev/EXPR","source":"js-ast","depth":2,"referer":"https://vite.dev/assets/chunks/theme.Bd2_aQt9.js","confidence":"template"}
+{"url":"https://vite.dev/assets/chunks/Footer.Bowc1_HC.js","method":"GET","source":"link","attribute":"href","tag":"link","depth":1,"status":200,"content_type":"application/javascript; charset=UTF-8","referer":"https://vite.dev/"}
+{"url":"https://vite.dev/assets/index.md.Bh66X_2B.lean.js","method":"GET","source":"link","attribute":"href","tag":"link","depth":1,"status":200,"content_type":"application/javascript; charset=UTF-8","referer":"https://vite.dev/"}
+{"url":"https://vite.dev/assets/chunks/assets.LcogJ1e5.js","method":"GET","source":"link","attribute":"href","tag":"link","depth":1,"status":200,"content_type":"application/javascript; charset=UTF-8","referer":"https://vite.dev/"}
+{"url":"https://vite.dev/logo-without-border.svg","method":"GET","source":"link","attribute":"href","tag":"link","depth":1,"status":200,"content_type":"image/svg+xml","referer":"https://vite.dev/"}
+{"url":"https://vite.dev/blog.rss","method":"GET","source":"link","attribute":"href","tag":"link","depth":1,"status":200,"content_type":"application/rss+xml","referer":"https://vite.dev/"}
+{"url":"https://vite.dev/og-image.jpg","method":"GET","source":"meta-og:image","attribute":"content","tag":"meta","depth":1,"status":200,"content_type":"image/jpeg","referer":"https://vite.dev/"}
+{"url":"https://vite.dev/assets/footer-background.BIgtbvhx.jpg","method":"GET","source":"img","attribute":"src","tag":"img","depth":1,"status":200,"content_type":"image/jpeg","referer":"https://vite.dev/"}
+{"url":"https://vite.dev/llms.txt","method":"GET","source":"link","attribute":"href","tag":"link","depth":1,"status":200,"content_type":"text/plain; charset=UTF-8","referer":"https://vite.dev/"}
+{"url":"https://vite.dev/assets/vite-light.t8GCa_VF.svg","method":"GET","source":"img","attribute":"src","tag":"img","depth":1,"status":200,"content_type":"image/svg+xml","referer":"https://vite.dev/"}
+{"url":"https://vite.dev/assets/vite-dark.D2ACe7TL.svg","method":"GET","source":"img","attribute":"src","tag":"img","depth":1,"status":200,"content_type":"image/svg+xml","referer":"https://vite.dev/"}
+{"url":"https://registry.vite.dev/plugins","method":"GET","source":"a","attribute":"href","tag":"a","depth":1,"status":200,"content_type":"text/html; charset=UTF-8","referer":"https://vite.dev/"}
+{"url":"https://v7.vite.dev/","method":"GET","source":"a","attribute":"href","tag":"a","depth":1,"status":200,"content_type":"text/html; charset=UTF-8","referer":"https://vite.dev/"}
+{"url":"https://main.vite.dev/","method":"GET","source":"a","attribute":"href","tag":"a","depth":1,"status":200,"content_type":"text/html; charset=UTF-8","referer":"https://vite.dev/"}
+{"url":"https://v6.vite.dev/","method":"GET","source":"a","attribute":"href","tag":"a","depth":1,"status":200,"content_type":"text/html; charset=UTF-8","referer":"https://vite.dev/"}
+{"url":"https://v5.vite.dev/","method":"GET","source":"a","attribute":"href","tag":"a","depth":1,"status":200,"content_type":"text/html; charset=UTF-8","referer":"https://vite.dev/"}
+{"url":"https://v3.vite.dev/","method":"GET","source":"a","attribute":"href","tag":"a","depth":1,"status":200,"content_type":"text/html; charset=UTF-8","referer":"https://vite.dev/"}
+{"url":"https://v4.vite.dev/","method":"GET","source":"a","attribute":"href","tag":"a","depth":1,"status":200,"content_type":"text/html; charset=UTF-8","referer":"https://vite.dev/"}
+{"url":"https://v2.vite.dev/","method":"GET","source":"a","attribute":"href","tag":"a","depth":1,"status":200,"content_type":"text/html; charset=UTF-8","referer":"https://vite.dev/"}
+{"url":"https://ja.vite.dev/","method":"GET","source":"a","attribute":"href","tag":"a","depth":1,"status":200,"content_type":"text/html; charset=UTF-8","referer":"https://vite.dev/"}
+{"url":"https://es.vite.dev/","method":"GET","source":"a","attribute":"href","tag":"a","depth":1,"status":200,"content_type":"text/html; charset=UTF-8","referer":"https://vite.dev/"}
+{"url":"https://vite.dev/trusted-by/openai.svg","method":"GET","source":"img","attribute":"src","tag":"img","depth":1,"status":200,"content_type":"image/svg+xml","referer":"https://vite.dev/"}
+{"url":"https://de.vite.dev/","method":"GET","source":"a","attribute":"href","tag":"a","depth":1,"status":200,"content_type":"text/html; charset=UTF-8","referer":"https://vite.dev/"}
+{"url":"https://ko.vite.dev/","method":"GET","source":"a","attribute":"href","tag":"a","depth":1,"status":200,"content_type":"text/html; charset=UTF-8","referer":"https://vite.dev/"}
+{"url":"https://cn.vite.dev/","method":"GET","source":"a","attribute":"href","tag":"a","depth":1,"status":200,"content_type":"text/html; charset=utf-8","referer":"https://vite.dev/"}
+{"url":"https://a.nel.cloudflare.com/report/v4?s=yj4S0cVlsRmJbf5zwBlOrQW8eAZXMTzpl%2BX2twoBpTTiSDUl96NfbNK8iL%2BslqnBfvGA4VwZ1VGxCE5Snti9VXYi4bPF5yz90uUu%2Fa12AXVZ3A7v1Y89IZVStz2qWg%3D%3D","source":"csp:report-to","depth":1,"referer":"https://cn.vite.dev/","kind":"csp-report"}
+{"url":"https://vite.dev/trusted-by/shopify.svg","method":"GET","source":"img","attribute":"src","tag":"img","depth":1,"status":200,"content_type":"image/svg+xml","referer":"https://vite.dev/"}
+{"url":"https://vite.dev/trusted-by/stripe.svg","method":"GET","source":"img","attribute":"src","tag":"img","depth":1,"status":200,"content_type":"image/svg+xml","referer":"https://vite.dev/"}
+{"url":"https://vite.dev/trusted-by/linear.svg","method":"GET","source":"img","attribute":"src","tag":"img","depth":1,"status":200,"content_type":"image/svg+xml","referer":"https://vite.dev/"}
+{"url":"https://vite.dev/trusted-by/clickup.svg","method":"GET","source":"img","attribute":"src","tag":"img","depth":1,"status":200,"content_type":"image/svg+xml","referer":"https://vite.dev/"}
+{"url":"https://vite.dev/assets/vite-featurepanel-1-background.BHnDg8j4.jpg","method":"GET","source":"img","attribute":"src","tag":"img","depth":1,"status":200,"content_type":"image/jpeg","referer":"https://vite.dev/"}
+{"url":"https://vite.dev/trusted-by/wiz.svg","method":"GET","source":"img","attribute":"src","tag":"img","depth":1,"status":200,"content_type":"image/svg+xml","referer":"https://vite.dev/"}
+{"url":"https://vite.dev/assets/vite-featurepanel-1-terminal.CQVUoUSU.svg","method":"GET","source":"img","attribute":"src","tag":"img","depth":1,"status":200,"content_type":"image/svg+xml","referer":"https://vite.dev/"}
+{"url":"https://vite.dev/assets/vite-featurepanel-2-terminal.ChpAU6sR.png","method":"GET","source":"img","attribute":"src","tag":"img","depth":1,"status":200,"content_type":"image/png","referer":"https://vite.dev/"}
+{"url":"https://vite.dev/assets/vite-featurepanel-4-background.Bnx0RZk-.jpg","method":"GET","source":"img","attribute":"src","tag":"img","depth":1,"status":200,"content_type":"image/jpeg","referer":"https://vite.dev/"}
+{"url":"https://vite.dev/assets/vite-featurepanel-4-terminal.BRnxuy_J.svg","method":"GET","source":"img","attribute":"src","tag":"img","depth":1,"status":200,"content_type":"image/svg+xml","referer":"https://vite.dev/"}
+{"url":"https://vite.dev/assets/vite-typed-api.B7gyuuaS.svg","method":"GET","source":"img","attribute":"src","tag":"img","depth":1,"status":200,"content_type":"image/svg+xml","referer":"https://vite.dev/"}
+{"url":"https://vite.dev/assets/vite-ssr-support.DvdwoLgL.png","method":"GET","source":"img","attribute":"src","tag":"img","depth":1,"status":200,"content_type":"image/png","referer":"https://vite.dev/"}
+{"url":"https://vite.dev/assets/vite-ci.rfkpyz0p.svg","method":"GET","source":"img","attribute":"src","tag":"img","depth":1,"status":200,"content_type":"image/svg+xml","referer":"https://vite.dev/"}
+{"url":"https://vite.dev/assets/vite-frameworks-mobile.BooA3_E6.png","method":"GET","source":"img","attribute":"src","tag":"img","depth":1,"status":200,"content_type":"image/png","referer":"https://vite.dev/"}
+{"url":"https://vite.dev/assets/vite-frameworks.D3X8o4O8.png","method":"GET","source":"img","attribute":"src","tag":"img","depth":1,"status":200,"content_type":"image/png","referer":"https://vite.dev/"}
+{"url":"https://vite.dev/assets/vite-by-voidzero.D7bblMgo.png","method":"GET","source":"img","attribute":"src","tag":"img","depth":1,"status":200,"content_type":"image/png","referer":"https://vite.dev/"}
+{"url":"https://vite.dev/acknowledgements","method":"GET","source":"sitemap","depth":1,"status":200,"content_type":"text/html; charset=UTF-8"}
+{"url":"https://vite.dev/blog","method":"GET","source":"sitemap","depth":1,"status":200,"content_type":"text/html; charset=UTF-8"}
+{"url":"https://vite.dev/blog/announcing-vite2","method":"GET","source":"sitemap","depth":1,"status":200,"content_type":"text/html; charset=UTF-8"}
+{"url":"https://vite.dev/blog/announcing-vite3","method":"GET","source":"sitemap","depth":1,"status":200,"content_type":"text/html; charset=UTF-8"}
+{"url":"https://vite.dev/blog/announcing-vite4-3","method":"GET","source":"sitemap","depth":1,"status":200,"content_type":"text/html; charset=UTF-8"}
+{"url":"https://vite.dev/blog/announcing-vite5","method":"GET","source":"sitemap","depth":1,"status":200,"content_type":"text/html; charset=UTF-8"}
+{"url":"https://vite.dev/blog/announcing-vite4","method":"GET","source":"sitemap","depth":1,"status":200,"content_type":"text/html; charset=UTF-8"}
+{"url":"https://vite.dev/blog/announcing-vite5-1","method":"GET","source":"sitemap","depth":1,"status":200,"content_type":"text/html; charset=UTF-8"}
+{"url":"https://vite.dev/blog/announcing-vite6","method":"GET","source":"sitemap","depth":1,"status":200,"content_type":"text/html; charset=UTF-8"}
+{"url":"https://vite.dev/blog/announcing-vite7","method":"GET","source":"sitemap","depth":1,"status":200,"content_type":"text/html; charset=UTF-8"}
+{"url":"https://vite.dev/blog/announcing-vite8-1","method":"GET","source":"sitemap","depth":1,"status":200,"content_type":"text/html; charset=UTF-8"}
+{"url":"https://vite.dev/blog/announcing-vite8","method":"GET","source":"sitemap","depth":1,"status":200,"content_type":"text/html; charset=UTF-8"}
+{"url":"https://vite.dev/blog/announcing-vite8-beta","method":"GET","source":"sitemap","depth":1,"status":200,"content_type":"text/html; charset=UTF-8"}
+{"url":"https://vite.dev/blog/cloudflare-supports-vite","method":"GET","source":"sitemap","depth":1,"status":200,"content_type":"text/html; charset=UTF-8"}
+{"url":"https://vite.dev/changes/hotupdate-hook","method":"GET","source":"sitemap","depth":1,"status":200,"content_type":"text/html; charset=UTF-8"}
+{"url":"https://vite.dev/changes/","method":"GET","source":"sitemap","depth":1,"status":200,"content_type":"text/html; charset=UTF-8"}
+{"url":"https://vite.dev/changes/per-environment-apis","method":"GET","source":"sitemap","depth":1,"status":200,"content_type":"text/html; charset=UTF-8"}
+{"url":"https://vite.dev/changes/shared-plugins-during-build","method":"GET","source":"sitemap","depth":1,"status":200,"content_type":"text/html; charset=UTF-8"}
+{"url":"https://vite.dev/changes/ssr-using-modulerunner","method":"GET","source":"sitemap","depth":1,"status":200,"content_type":"text/html; charset=UTF-8"}
+{"url":"https://vite.dev/config/build-options","method":"GET","source":"sitemap","depth":1,"status":200,"content_type":"text/html; charset=UTF-8"}
+{"url":"https://vite.dev/changes/this-environment-in-hooks","method":"GET","source":"sitemap","depth":1,"status":200,"content_type":"text/html; charset=UTF-8"}
+{"url":"https://vite.dev/config/","method":"GET","source":"sitemap","depth":1,"status":200,"content_type":"text/html; charset=UTF-8"}
+{"url":"https://vite.dev/config/dep-optimization-options","method":"GET","source":"sitemap","depth":1,"status":200,"content_type":"text/html; charset=UTF-8"}
+{"url":"https://vite.dev/config/preview-options","method":"GET","source":"sitemap","depth":1,"status":200,"content_type":"text/html; charset=UTF-8"}
+{"url":"https://vite.dev/config/server-options","method":"GET","source":"sitemap","depth":1,"status":200,"content_type":"text/html; charset=UTF-8"}
+{"url":"https://vite.dev/config/shared-options","method":"GET","source":"sitemap","depth":1,"status":200,"content_type":"text/html; charset=UTF-8"}
+{"url":"https://vite.dev/config/ssr-options","method":"GET","source":"sitemap","depth":1,"status":200,"content_type":"text/html; charset=UTF-8"}
+{"url":"https://vite.dev/config/worker-options","method":"GET","source":"sitemap","depth":1,"status":200,"content_type":"text/html; charset=UTF-8"}
+{"url":"https://vite.dev/guide/api-environment-frameworks","method":"GET","source":"sitemap","depth":1,"status":200,"content_type":"text/html; charset=UTF-8"}
+{"url":"https://vite.dev/guide/api-environment-instances","method":"GET","source":"sitemap","depth":1,"status":200,"content_type":"text/html; charset=UTF-8"}
+{"url":"https://vite.dev/guide/api-environment-plugins","method":"GET","source":"sitemap","depth":1,"status":200,"content_type":"text/html; charset=UTF-8"}
+{"url":"https://vite.dev/guide/api-environment-runtimes","method":"GET","source":"sitemap","depth":1,"status":200,"content_type":"text/html; charset=UTF-8"}
+{"url":"https://vite.dev/guide/api-environment","method":"GET","source":"sitemap","depth":1,"status":200,"content_type":"text/html; charset=UTF-8"}
+{"url":"https://vite.dev/guide/api-hmr","method":"GET","source":"sitemap","depth":1,"status":200,"content_type":"text/html; charset=UTF-8"}
+{"url":"https://vite.dev/guide/api-javascript","method":"GET","source":"sitemap","depth":1,"status":200,"content_type":"text/html; charset=UTF-8"}
+{"url":"https://vite.dev/guide/assets","method":"GET","source":"sitemap","depth":1,"status":200,"content_type":"text/html; charset=UTF-8"}
+{"url":"https://vite.dev/guide/api-plugin","method":"GET","source":"sitemap","depth":1,"status":200,"content_type":"text/html; charset=UTF-8"}
+{"url":"https://vite.dev/guide/backend-integration","method":"GET","source":"sitemap","depth":1,"status":200,"content_type":"text/html; charset=UTF-8"}
+{"url":"https://vite.dev/guide/build","method":"GET","source":"sitemap","depth":1,"status":200,"content_type":"text/html; charset=UTF-8"}
+{"url":"https://vite.dev/guide/cli","method":"GET","source":"sitemap","depth":1,"status":200,"content_type":"text/html; charset=UTF-8"}
+{"url":"https://vite.dev/guide/env-and-mode","method":"GET","source":"sitemap","depth":1,"status":200,"content_type":"text/html; charset=UTF-8"}
+{"url":"https://vite.dev/guide/dep-pre-bundling","method":"GET","source":"sitemap","depth":1,"status":200,"content_type":"text/html; charset=UTF-8"}
+{"url":"https://vite.dev/guide/features","method":"GET","source":"sitemap","depth":1,"status":200,"content_type":"text/html; charset=UTF-8"}
+{"url":"https://vite.dev/guide/","method":"GET","source":"sitemap","depth":1,"status":200,"content_type":"text/html; charset=UTF-8"}
+{"url":"https://vite.dev/guide/migration","method":"GET","source":"sitemap","depth":1,"status":200,"content_type":"text/html; charset=UTF-8"}
+{"url":"https://vite.dev/guide/performance","method":"GET","source":"sitemap","depth":1,"status":200,"content_type":"text/html; charset=UTF-8"}
+{"url":"https://vite.dev/guide/philosophy","method":"GET","source":"sitemap","depth":1,"status":200,"content_type":"text/html; charset=UTF-8"}
+{"url":"https://vite.dev/guide/static-deploy","method":"GET","source":"sitemap","depth":1,"status":200,"content_type":"text/html; charset=UTF-8"}
+{"url":"https://vite.dev/guide/ssr","method":"GET","source":"sitemap","depth":1,"status":200,"content_type":"text/html; charset=UTF-8"}
+{"url":"https://vite.dev/guide/troubleshooting","method":"GET","source":"sitemap","depth":1,"status":200,"content_type":"text/html; charset=UTF-8"}
+{"url":"https://vite.dev/guide/using-plugins","method":"GET","source":"sitemap","depth":1,"status":200,"content_type":"text/html; charset=UTF-8"}
+{"url":"https://vite.dev/plugins/","method":"GET","source":"sitemap","depth":1,"status":200,"content_type":"text/html; charset=UTF-8"}
+{"url":"https://vite.dev/live","method":"GET","source":"sitemap","depth":1,"status":200,"content_type":"text/html; charset=UTF-8"}
+{"url":"https://vite.dev/releases","method":"GET","source":"sitemap","depth":1,"status":200,"content_type":"text/html; charset=UTF-8"}
+{"url":"https://vite.dev/team","method":"GET","source":"sitemap","depth":1,"status":200,"content_type":"text/html; charset=UTF-8"}
+{"url":"https://vite.dev/guide/why","method":"GET","source":"sitemap","depth":1,"status":200,"content_type":"text/html; charset=UTF-8"}
+{"url":"https://vite.dev/assets/primary-button-background.Bjk7gn3x.jpg","method":"GET","source":"css","depth":2,"status":200,"content_type":"image/jpeg","referer":"https://vite.dev/assets/style.CqmlJ7bz.css"}
+{"url":"https://vite.dev/blog","method":"GET","source":"js-ast","depth":2,"status":200,"content_type":"text/html; charset=UTF-8","referer":"https://vite.dev/assets/chunks/metadata.645018ac.js"}
+{"url":"https://vite.dev/assets/primary-button-background.DQk9_E88.jpg","method":"GET","source":"css","depth":2,"status":200,"content_type":"image/jpeg","referer":"https://vite.dev/assets/style.CqmlJ7bz.css"}
+{"url":"https://vite.dev/assets/primary-button-background.CHnwvuqy.jpg","method":"GET","source":"css","depth":2,"status":200,"content_type":"image/jpeg","referer":"https://vite.dev/assets/style.CqmlJ7bz.css"}
+{"url":"https://vite.dev/assets/primary-button-background.DR4xgNht.jpg","method":"GET","source":"css","depth":2,"status":200,"content_type":"image/jpeg","referer":"https://vite.dev/assets/style.CqmlJ7bz.css"}
+{"url":"https://vite.dev/assets/terminal-background.DXvDA53U.jpg","method":"GET","source":"css","depth":2,"status":200,"content_type":"image/jpeg","referer":"https://vite.dev/assets/style.CqmlJ7bz.css"}
+{"url":"https://vite.dev/assets/APK-Protocol-Medium.C7Mq9oGh.woff2","method":"GET","source":"css","depth":2,"status":200,"content_type":"font/woff2","referer":"https://vite.dev/assets/style.CqmlJ7bz.css"}
+{"url":"https://vite.dev/assets/APK-Protocol-Semi-Bold.CC2BASA5.woff2","method":"GET","source":"css","depth":2,"status":200,"content_type":"font/woff2","referer":"https://vite.dev/assets/style.CqmlJ7bz.css"}
+{"url":"https://vite.dev/assets/primary-button-background.QdHMRZT6.jpg","method":"GET","source":"css","depth":2,"status":200,"content_type":"image/jpeg","referer":"https://vite.dev/assets/style.CqmlJ7bz.css"}
+{"url":"https://vite.dev/assets/KHTekaMono-Regular.CiZ9ZkmZ.woff2","method":"GET","source":"css","depth":2,"status":200,"content_type":"font/woff2","referer":"https://vite.dev/assets/style.CqmlJ7bz.css"}
+{"url":"https://vite.dev/assets/KHTekaMono-Medium.CxAWoJPq.woff2","method":"GET","source":"css","depth":2,"status":200,"content_type":"font/woff2","referer":"https://vite.dev/assets/style.CqmlJ7bz.css"}
+{"url":"https://vite.dev/assets/inter-roman-cyrillic-ext.BBPuwvHQ.woff2","method":"GET","source":"css","depth":2,"status":200,"content_type":"font/woff2","referer":"https://vite.dev/assets/style.CqmlJ7bz.css"}
+{"url":"https://vite.dev/assets/inter-roman-cyrillic.C5lxZ8CY.woff2","method":"GET","source":"css","depth":2,"status":200,"content_type":"font/woff2","referer":"https://vite.dev/assets/style.CqmlJ7bz.css"}
+{"url":"https://vite.dev/assets/inter-roman-greek-ext.CqjqNYQ-.woff2","method":"GET","source":"css","depth":2,"status":200,"content_type":"font/woff2","referer":"https://vite.dev/assets/style.CqmlJ7bz.css"}
+{"url":"https://vite.dev/assets/inter-roman-greek.BBVDIX6e.woff2","method":"GET","source":"css","depth":2,"status":200,"content_type":"font/woff2","referer":"https://vite.dev/assets/style.CqmlJ7bz.css"}
+{"url":"https://vite.dev/assets/inter-roman-vietnamese.BjW4sHH5.woff2","method":"GET","source":"css","depth":2,"status":200,"content_type":"font/woff2","referer":"https://vite.dev/assets/style.CqmlJ7bz.css"}
+{"url":"https://vite.dev/assets/inter-roman-latin-ext.4ZJIpNVo.woff2","method":"GET","source":"css","depth":2,"status":200,"content_type":"font/woff2","referer":"https://vite.dev/assets/style.CqmlJ7bz.css"}
+{"url":"https://vite.dev/assets/inter-roman-latin.Di8DUHzh.woff2","method":"GET","source":"css","depth":2,"status":200,"content_type":"font/woff2","referer":"https://vite.dev/assets/style.CqmlJ7bz.css"}
+{"url":"https://vite.dev/assets/inter-italic-cyrillic.By2_1cv3.woff2","method":"GET","source":"css","depth":2,"status":200,"content_type":"font/woff2","referer":"https://vite.dev/assets/style.CqmlJ7bz.css"}
+{"url":"https://vite.dev/assets/inter-italic-cyrillic-ext.r48I6akx.woff2","method":"GET","source":"css","depth":2,"status":200,"content_type":"font/woff2","referer":"https://vite.dev/assets/style.CqmlJ7bz.css"}
+{"url":"https://vite.dev/assets/inter-italic-greek.DJ8dCoTZ.woff2","method":"GET","source":"css","depth":2,"status":200,"content_type":"font/woff2","referer":"https://vite.dev/assets/style.CqmlJ7bz.css"}
+{"url":"https://vite.dev/assets/inter-italic-greek-ext.1u6EdAuj.woff2","method":"GET","source":"css","depth":2,"status":200,"content_type":"font/woff2","referer":"https://vite.dev/assets/style.CqmlJ7bz.css"}
+{"url":"https://vite.dev/assets/inter-italic-vietnamese.BSbpV94h.woff2","method":"GET","source":"css","depth":2,"status":200,"content_type":"font/woff2","referer":"https://vite.dev/assets/style.CqmlJ7bz.css"}
+{"url":"https://vite.dev/assets/inter-italic-latin-ext.CN1xVJS-.woff2","method":"GET","source":"css","depth":2,"status":200,"content_type":"font/woff2","referer":"https://vite.dev/assets/style.CqmlJ7bz.css"}
+{"url":"https://vite.dev/assets/inter-italic-latin.C2AdPX0b.woff2","method":"GET","source":"css","depth":2,"status":200,"content_type":"font/woff2","referer":"https://vite.dev/assets/style.CqmlJ7bz.css"}
+{"url":"https://vite.dev/assets/chunks/DifaEXfp.js","method":"GET","source":"chunk:vite.mapDeps","depth":2,"status":200,"content_type":"application/javascript; charset=UTF-8","referer":"https://vite.dev/assets/chunks/theme.Bd2_aQt9.js","kind":"chunk"}
+{"url":"https://vite.dev/assets/chunks/VPLocalSearchBox.BxnTwAuB.js","method":"GET","source":"chunk:vite.mapDeps","depth":2,"status":200,"content_type":"application/javascript; charset=UTF-8","referer":"https://vite.dev/assets/chunks/theme.Bd2_aQt9.js","kind":"chunk"}
+{"url":"https://vite.dev/assets/chunks/VPAlgoliaSearchBox.DFyXShnd.js","method":"GET","source":"chunk:vite.mapDeps","depth":2,"status":200,"content_type":"application/javascript; charset=UTF-8","referer":"https://vite.dev/assets/chunks/theme.Bd2_aQt9.js","kind":"chunk"}
+{"url":"https://sponsors.vite.dev/sponsors.json","method":"GET","source":"js-ast","depth":2,"status":200,"content_type":"application/json","referer":"https://vite.dev/assets/chunks/theme.Bd2_aQt9.js"}
+{"url":"https://vite.dev/assets/viteconf.Dvk5Ghxu.svg","method":"GET","source":"js-ast","depth":2,"status":200,"content_type":"image/svg+xml","referer":"https://vite.dev/assets/chunks/assets.LcogJ1e5.js"}
+{"url":"https://vite.dev/assets/chunks/_index.md","method":"GET","source":"js-ast","depth":2,"status":404,"content_type":"text/html; charset=utf-8","referer":"https://vite.dev/assets/chunks/framework.Mlkvh5rC.js"}
+{"url":"https://vite.dev/logo.svg","method":"GET","source":"js-ast","depth":2,"status":200,"content_type":"image/svg+xml","referer":"https://vite.dev/assets/chunks/assets.LcogJ1e5.js"}
+{"url":"https://vite.dev/og-image-announcing-vite3.webp","method":"GET","source":"js-ast","depth":2,"status":200,"content_type":"image/webp","referer":"https://vite.dev/assets/chunks/assets.LcogJ1e5.js"}
+{"url":"https://vite.dev/assets/v3-docs.BcWJbi3K.webp","method":"GET","source":"js-ast","depth":2,"status":200,"content_type":"image/webp","referer":"https://vite.dev/assets/chunks/assets.LcogJ1e5.js"}
+{"url":"https://vite.dev/assets/react.CHdo91hT.svg","method":"GET","source":"js-ast","depth":2,"status":200,"content_type":"image/svg+xml","referer":"https://vite.dev/assets/chunks/assets.LcogJ1e5.js"}
+{"url":"https://vite.dev/assets/vite-3-cold-start.CiJKXpiH.svg","method":"GET","source":"js-ast","depth":2,"status":200,"content_type":"image/svg+xml","referer":"https://vite.dev/assets/chunks/assets.LcogJ1e5.js"}
+{"url":"https://vite.dev/assets/v3-open-issues-and-PRs.BHtyGs_D.webp","method":"GET","source":"js-ast","depth":2,"status":200,"content_type":"image/webp","referer":"https://vite.dev/assets/chunks/assets.LcogJ1e5.js"}
+{"url":"https://vite.dev/assets/v3-new-open-issues-and-PRs.CpCw74l7.webp","method":"GET","source":"js-ast","depth":2,"status":200,"content_type":"image/webp","referer":"https://vite.dev/assets/chunks/assets.LcogJ1e5.js"}
+{"url":"https://vite.dev/og-image-announcing-vite4-3.webp","method":"GET","source":"js-ast","depth":2,"status":200,"content_type":"image/webp","referer":"https://vite.dev/assets/chunks/assets.LcogJ1e5.js"}
+{"url":"https://vite.dev/assets/vite4-3-startup-time.C7QnmUdx.webp","method":"GET","source":"js-ast","depth":2,"status":200,"content_type":"image/webp","referer":"https://vite.dev/assets/chunks/assets.LcogJ1e5.js"}
+{"url":"https://vite.dev/assets/vite4-3-hmr-time.DDK00hKW.webp","method":"GET","source":"js-ast","depth":2,"status":200,"content_type":"image/webp","referer":"https://vite.dev/assets/chunks/assets.LcogJ1e5.js"}
+{"url":"https://vite.dev/og-image-announcing-vite4.webp","method":"GET","source":"js-ast","depth":2,"status":200,"content_type":"image/webp","referer":"https://vite.dev/assets/chunks/assets.LcogJ1e5.js"}
+{"url":"https://vite.dev/assets/ecosystem-vite4.D87C5WSz.webp","method":"GET","source":"js-ast","depth":2,"status":200,"content_type":"image/webp","referer":"https://vite.dev/assets/chunks/assets.LcogJ1e5.js"}
+{"url":"https://vite.dev/og-image-announcing-vite5-1.webp","method":"GET","source":"js-ast","depth":2,"status":200,"content_type":"image/webp","referer":"https://vite.dev/assets/chunks/assets.LcogJ1e5.js"}
+{"url":"https://vite.dev/assets/vite5-1-10K-modules-loading-time.iawzNaFn.webp","method":"GET","source":"js-ast","depth":2,"status":200,"content_type":"image/webp","referer":"https://vite.dev/assets/chunks/assets.LcogJ1e5.js"}
+{"url":"https://vite.dev/og-image-announcing-vite5.webp","method":"GET","source":"js-ast","depth":2,"status":200,"content_type":"image/webp","referer":"https://vite.dev/assets/chunks/assets.LcogJ1e5.js"}
+{"url":"https://vite.dev/og-image-announcing-vite6.webp","method":"GET","source":"js-ast","depth":2,"status":200,"content_type":"image/webp","referer":"https://vite.dev/assets/chunks/assets.LcogJ1e5.js"}
+{"url":"https://vite.dev/assets/vite6-npm-weekly-downloads.BxWMLoiq.webp","method":"GET","source":"js-ast","depth":2,"status":200,"content_type":"image/webp","referer":"https://vite.dev/assets/chunks/assets.LcogJ1e5.js"}
+{"url":"https://vite.dev/og-image-announcing-vite7.webp","method":"GET","source":"js-ast","depth":2,"status":200,"content_type":"image/webp","referer":"https://vite.dev/assets/chunks/assets.LcogJ1e5.js"}
+{"url":"https://vite.dev/og-image-announcing-vite8-1.webp","method":"GET","source":"js-ast","depth":2,"status":200,"content_type":"image/webp","referer":"https://vite.dev/assets/chunks/assets.LcogJ1e5.js"}
+{"url":"https://vite.dev/og-image-announcing-vite8.webp","method":"GET","source":"js-ast","depth":2,"status":200,"content_type":"image/webp","referer":"https://vite.dev/assets/chunks/assets.LcogJ1e5.js"}
+{"url":"https://vite.dev/og-image-announcing-vite8-beta.webp","method":"GET","source":"js-ast","depth":2,"status":200,"content_type":"image/webp","referer":"https://vite.dev/assets/chunks/assets.LcogJ1e5.js"}
+{"url":"https://vite.dev/assets/vite-plugin-inspect.BSP8m2UZ.webp","method":"GET","source":"js-ast","depth":2,"status":200,"content_type":"image/webp","referer":"https://vite.dev/assets/chunks/assets.LcogJ1e5.js"}
+{"url":"https://vite.dev/og-image-cloudflare-supports-vite.webp","method":"GET","source":"js-ast","depth":2,"status":200,"content_type":"image/webp","referer":"https://vite.dev/assets/chunks/assets.LcogJ1e5.js"}
+{"url":"https://vite.dev/assets/vite-environments.DZyy20w5.svg","method":"GET","source":"js-ast","depth":2,"status":200,"content_type":"image/svg+xml","referer":"https://vite.dev/assets/chunks/assets.LcogJ1e5.js"}
+{"url":"https://vite.dev/assets/563_x_420_rich_features.Gwgw8IXl.riv","method":"GET","source":"js-ast","depth":2,"status":200,"content_type":"application/octet-stream","referer":"https://vite.dev/assets/chunks/assets.LcogJ1e5.js"}
+{"url":"https://vite.dev/assets/voice.BpPsJoey.svg","method":"GET","source":"js-ast","depth":2,"status":200,"content_type":"image/svg+xml","referer":"https://vite.dev/assets/chunks/assets.LcogJ1e5.js"}
+{"url":"https://vite.dev/vite.mp3","method":"GET","source":"js-ast","depth":2,"status":200,"content_type":"audio/mpeg","referer":"https://vite.dev/assets/chunks/assets.LcogJ1e5.js"}
+{"url":"https://vite.dev/assets/rive.B-RThLKI.wasm","method":"GET","source":"js-ast","depth":2,"status":200,"content_type":"application/wasm","referer":"https://vite.dev/assets/chunks/assets.LcogJ1e5.js"}
+{"url":"https://vite.dev/assets/640_x_300_flexible_plugin.DzLLIuId.riv","method":"GET","source":"js-ast","depth":2,"status":200,"content_type":"application/octet-stream","referer":"https://vite.dev/assets/chunks/assets.LcogJ1e5.js"}
+{"url":"https://vite.dev/assets/641_x_629_vite_masthead.CJXD3cz6.riv","method":"GET","source":"js-ast","depth":2,"status":200,"content_type":"application/octet-stream","referer":"https://vite.dev/assets/chunks/assets.LcogJ1e5.js"}
+{"url":"https://vite.dev/assets/viteconf_2022.e0CEURUC.jpg","method":"GET","source":"js-ast","depth":2,"status":200,"content_type":"image/jpeg","referer":"https://vite.dev/assets/chunks/assets.LcogJ1e5.js"}
+{"url":"https://vite.dev/assets/viteconf_2023.BaAgnvTE.jpg","method":"GET","source":"js-ast","depth":2,"status":200,"content_type":"image/jpeg","referer":"https://vite.dev/assets/chunks/assets.LcogJ1e5.js"}
+{"url":"https://vite.dev/assets/viteconf_2024.BrkODr_z.jpg","method":"GET","source":"js-ast","depth":2,"status":200,"content_type":"image/jpeg","referer":"https://vite.dev/assets/chunks/assets.LcogJ1e5.js"}
+{"url":"https://vite.dev/assets/viteconf_2025.CYb9p997.jpg","method":"GET","source":"js-ast","depth":2,"status":200,"content_type":"image/jpeg","referer":"https://vite.dev/assets/chunks/assets.LcogJ1e5.js"}
+{"url":"https://vite.dev/assets/cultrepo-tv.CI1oeeTK.svg","method":"GET","source":"js-ast","depth":2,"status":200,"content_type":"image/svg+xml","referer":"https://vite.dev/assets/chunks/assets.LcogJ1e5.js"}
+{"url":"https://vite.dev/assets/vite-live-community.CKCFWwGC.webp","method":"GET","source":"js-ast","depth":2,"status":200,"content_type":"image/webp","referer":"https://vite.dev/assets/chunks/assets.LcogJ1e5.js"}
+{"url":"https://vite.dev/assets/vite-play.CwLRAbVc.webp","method":"GET","source":"js-ast","depth":2,"status":200,"content_type":"image/webp","referer":"https://vite.dev/assets/chunks/assets.LcogJ1e5.js"}
+{"url":"https://vite.dev/assets/canvas_advanced_c2d_only.wasm","method":"GET","source":"js-ast","depth":2,"status":404,"content_type":"text/html; charset=utf-8","referer":"https://vite.dev/assets/index.md.Bh66X_2B.lean.js"}
+{"url":"https://registry.vite.dev/assets/style.Ch11G9P7.css","method":"GET","source":"link","attribute":"href","tag":"link","depth":2,"status":200,"content_type":"text/css; charset=UTF-8","referer":"https://registry.vite.dev/plugins"}
+{"url":"https://registry.vite.dev/assets/chunks/metadata.7939b566.js","method":"GET","source":"script","attribute":"src","tag":"script","depth":2,"status":200,"content_type":"application/javascript; charset=UTF-8","referer":"https://registry.vite.dev/plugins"}
+{"url":"https://registry.vite.dev/assets/app.B2eWmt24.js","method":"GET","source":"script","attribute":"src","tag":"script","depth":2,"status":200,"content_type":"application/javascript; charset=UTF-8","referer":"https://registry.vite.dev/plugins"}
+{"url":"https://registry.vite.dev/assets/chunks/framework.DdAHm6X3.js","method":"GET","source":"link","attribute":"href","tag":"link","depth":2,"status":200,"content_type":"application/javascript; charset=UTF-8","referer":"https://registry.vite.dev/plugins"}
+{"url":"https://registry.vite.dev/assets/chunks/theme.BX9y3si_.js","method":"GET","source":"link","attribute":"href","tag":"link","depth":2,"status":200,"content_type":"application/javascript; charset=UTF-8","referer":"https://registry.vite.dev/plugins"}
+{"url":"https://registry.vite.dev/assets/plugins.md.DuFQpR3v.lean.js","method":"GET","source":"link","attribute":"href","tag":"link","depth":2,"status":200,"content_type":"application/javascript; charset=UTF-8","referer":"https://registry.vite.dev/plugins"}
+{"url":"https://registry.vite.dev/api/plugins.json","method":"GET","source":"link","attribute":"href","tag":"link","depth":2,"status":200,"content_type":"application/json","referer":"https://registry.vite.dev/plugins"}
+{"url":"https://registry.vite.dev/assets/vite-dark.D2ACe7TL.svg","method":"GET","source":"img","attribute":"src","tag":"img","depth":2,"status":200,"content_type":"image/svg+xml","referer":"https://registry.vite.dev/plugins"}
+{"url":"https://registry.vite.dev/","method":"GET","source":"a","attribute":"href","tag":"a","depth":2,"status":200,"content_type":"text/html; charset=UTF-8","referer":"https://registry.vite.dev/plugins"}
+{"url":"https://registry.vite.dev/assets/vite-light.t8GCa_VF.svg","method":"GET","source":"img","attribute":"src","tag":"img","depth":2,"status":200,"content_type":"image/svg+xml","referer":"https://registry.vite.dev/plugins"}
+{"url":"https://registry.vite.dev/guide/","method":"GET","source":"a","attribute":"href","tag":"a","depth":2,"status":200,"content_type":"text/html; charset=UTF-8","referer":"https://registry.vite.dev/plugins"}
+{"url":"https://v7.vite.dev/assets/app.DpY4La97.js","method":"GET","source":"script","attribute":"src","tag":"script","depth":2,"status":200,"content_type":"application/javascript; charset=UTF-8","referer":"https://v7.vite.dev/"}
+{"url":"https://v7.vite.dev/vp-icons.css","method":"GET","source":"link","attribute":"href","tag":"link","depth":2,"status":200,"content_type":"text/css; charset=UTF-8","referer":"https://v7.vite.dev/"}
+{"url":"https://v7.vite.dev/assets/style.CAvvcO-z.css","method":"GET","source":"link","attribute":"href","tag":"link","depth":2,"status":200,"content_type":"text/css; charset=UTF-8","referer":"https://v7.vite.dev/"}
+{"url":"https://v7.vite.dev/assets/chunks/theme.CzqM6Lhf.js","method":"GET","source":"link","attribute":"href","tag":"link","depth":2,"status":200,"content_type":"application/javascript; charset=UTF-8","referer":"https://v7.vite.dev/"}
+{"url":"https://v7.vite.dev/assets/chunks/framework.C7J5yLGj.js","method":"GET","source":"link","attribute":"href","tag":"link","depth":2,"status":200,"content_type":"application/javascript; charset=UTF-8","referer":"https://v7.vite.dev/"}
+{"url":"https://v7.vite.dev/assets/index.md.CjKm4KV5.lean.js","method":"GET","source":"link","attribute":"href","tag":"link","depth":2,"status":200,"content_type":"application/javascript; charset=UTF-8","referer":"https://v7.vite.dev/"}
+{"url":"https://v7.vite.dev/assets/chunks/Footer.vue_vue_type_script_setup_true_lang.BC00H1Xg.js","method":"GET","source":"link","attribute":"href","tag":"link","depth":2,"status":200,"content_type":"application/javascript; charset=UTF-8","referer":"https://v7.vite.dev/"}
+{"url":"https://v7.vite.dev/logo-without-border.svg","method":"GET","source":"link","attribute":"href","tag":"link","depth":2,"status":200,"content_type":"image/svg+xml","referer":"https://v7.vite.dev/"}
+{"url":"https://v7.vite.dev/blog.rss","method":"GET","source":"link","attribute":"href","tag":"link","depth":2,"status":200,"content_type":"application/rss+xml","referer":"https://v7.vite.dev/"}
+{"url":"https://v7.vite.dev/assets/vite-dark.D2ACe7TL.svg","method":"GET","source":"img","attribute":"src","tag":"img","depth":2,"status":200,"content_type":"image/svg+xml","referer":"https://v7.vite.dev/"}
+{"url":"https://v7.vite.dev/assets/vite-light.t8GCa_VF.svg","method":"GET","source":"img","attribute":"src","tag":"img","depth":2,"status":200,"content_type":"image/svg+xml","referer":"https://v7.vite.dev/"}
+{"url":"https://v7.vite.dev/guide/","method":"GET","source":"a","attribute":"href","tag":"a","depth":2,"status":200,"content_type":"text/html; charset=UTF-8","referer":"https://v7.vite.dev/"}
+{"url":"https://v7.vite.dev/config/","method":"GET","source":"a","attribute":"href","tag":"a","depth":2,"status":200,"content_type":"text/html; charset=UTF-8","referer":"https://v7.vite.dev/"}
+{"url":"https://v7.vite.dev/team","method":"GET","source":"a","attribute":"href","tag":"a","depth":2,"status":200,"content_type":"text/html; charset=UTF-8","referer":"https://v7.vite.dev/"}
+{"url":"https://v7.vite.dev/plugins/","method":"GET","source":"a","attribute":"href","tag":"a","depth":2,"status":200,"content_type":"text/html; charset=UTF-8","referer":"https://v7.vite.dev/"}
+{"url":"https://v7.vite.dev/blog","method":"GET","source":"a","attribute":"href","tag":"a","depth":2,"status":200,"content_type":"text/html; charset=UTF-8","referer":"https://v7.vite.dev/"}
+{"url":"https://v7.vite.dev/releases","method":"GET","source":"a","attribute":"href","tag":"a","depth":2,"status":200,"content_type":"text/html; charset=UTF-8","referer":"https://v7.vite.dev/"}
+{"url":"https://v7.vite.dev/trusted-by/openai.svg","method":"GET","source":"img","attribute":"src","tag":"img","depth":2,"status":200,"content_type":"image/svg+xml","referer":"https://v7.vite.dev/"}
+{"url":"https://v7.vite.dev/trusted-by/shopify.svg","method":"GET","source":"img","attribute":"src","tag":"img","depth":2,"status":200,"content_type":"image/svg+xml","referer":"https://v7.vite.dev/"}
+{"url":"https://vite.dev/","method":"GET","source":"a","attribute":"href","tag":"a","depth":2,"status":200,"content_type":"text/html; charset=UTF-8","referer":"https://v7.vite.dev/"}
+{"url":"https://v7.vite.dev/trusted-by/stripe.svg","method":"GET","source":"img","attribute":"src","tag":"img","depth":2,"status":200,"content_type":"image/svg+xml","referer":"https://v7.vite.dev/"}
+{"url":"https://v7.vite.dev/trusted-by/linear.svg","method":"GET","source":"img","attribute":"src","tag":"img","depth":2,"status":200,"content_type":"image/svg+xml","referer":"https://v7.vite.dev/"}
+{"url":"https://vite.dev/","method":"GET","source":"a","attribute":"href","tag":"a","depth":2,"status":200,"content_type":"text/html; charset=UTF-8","referer":"https://v7.vite.dev/"}
+{"url":"https://v7.vite.dev/trusted-by/clickup.svg","method":"GET","source":"img","attribute":"src","tag":"img","depth":2,"status":200,"content_type":"image/svg+xml","referer":"https://v7.vite.dev/"}
+{"url":"https://v7.vite.dev/trusted-by/wiz.svg","method":"GET","source":"img","attribute":"src","tag":"img","depth":2,"status":200,"content_type":"image/svg+xml","referer":"https://v7.vite.dev/"}
+{"url":"https://v7.vite.dev/assets/vite-featurepanel-1-background.BHnDg8j4.jpg","method":"GET","source":"img","attribute":"src","tag":"img","depth":2,"status":200,"content_type":"image/jpeg","referer":"https://v7.vite.dev/"}
+{"url":"https://v7.vite.dev/assets/vite-featurepanel-1-terminal.CQVUoUSU.svg","method":"GET","source":"img","attribute":"src","tag":"img","depth":2,"status":200,"content_type":"image/svg+xml","referer":"https://v7.vite.dev/"}
+{"url":"https://v7.vite.dev/assets/vite-featurepanel-2-terminal.CjMck4X1.png","method":"GET","source":"img","attribute":"src","tag":"img","depth":2,"status":200,"content_type":"image/png","referer":"https://v7.vite.dev/"}
+{"url":"https://v7.vite.dev/assets/vite-featurepanel-4-background.Bnx0RZk-.jpg","method":"GET","source":"img","attribute":"src","tag":"img","depth":2,"status":200,"content_type":"image/jpeg","referer":"https://v7.vite.dev/"}
+{"url":"https://v7.vite.dev/assets/vite-featurepanel-4-terminal.BRnxuy_J.svg","method":"GET","source":"img","attribute":"src","tag":"img","depth":2,"status":200,"content_type":"image/svg+xml","referer":"https://v7.vite.dev/"}
+{"url":"https://v7.vite.dev/assets/vite-typed-api.B7gyuuaS.svg","method":"GET","source":"img","attribute":"src","tag":"img","depth":2,"status":200,"content_type":"image/svg+xml","referer":"https://v7.vite.dev/"}
+{"url":"https://v7.vite.dev/assets/vite-ci.rfkpyz0p.svg","method":"GET","source":"img","attribute":"src","tag":"img","depth":2,"status":200,"content_type":"image/svg+xml","referer":"https://v7.vite.dev/"}
+{"url":"https://v7.vite.dev/assets/vite-ssr-support.C71yCKer.png","method":"GET","source":"img","attribute":"src","tag":"img","depth":2,"status":200,"content_type":"image/png","referer":"https://v7.vite.dev/"}
+{"url":"https://v7.vite.dev/assets/vite-frameworks-mobile.DUw9NoVz.png","method":"GET","source":"img","attribute":"src","tag":"img","depth":2,"status":200,"content_type":"image/png","referer":"https://v7.vite.dev/"}
+{"url":"https://v7.vite.dev/assets/vite-frameworks.BUIm9W5J.png","method":"GET","source":"img","attribute":"src","tag":"img","depth":2,"status":200,"content_type":"image/png","referer":"https://v7.vite.dev/"}
+{"url":"https://v7.vite.dev/assets/vite-by-voidzero.DjB1Yyie.png","method":"GET","source":"img","attribute":"src","tag":"img","depth":2,"status":200,"content_type":"image/png","referer":"https://v7.vite.dev/"}
+{"url":"https://v7.vite.dev/assets/footer-background.BIgtbvhx.jpg","method":"GET","source":"img","attribute":"src","tag":"img","depth":2,"status":200,"content_type":"image/jpeg","referer":"https://v7.vite.dev/"}
+{"url":"https://main.vite.dev/assets/chunks/metadata.95ae2b27.js","method":"GET","source":"script","attribute":"src","tag":"script","depth":2,"status":200,"content_type":"application/javascript; charset=UTF-8","referer":"https://main.vite.dev/"}
+{"url":"https://main.vite.dev/assets/style.oAtI7c3D.css","method":"GET","source":"link","attribute":"href","tag":"link","depth":2,"status":200,"content_type":"text/css; charset=UTF-8","referer":"https://main.vite.dev/"}
+{"url":"https://main.vite.dev/assets/app.CtbPVvaT.js","method":"GET","source":"script","attribute":"src","tag":"script","depth":2,"status":200,"content_type":"application/javascript; charset=UTF-8","referer":"https://main.vite.dev/"}
+{"url":"https://main.vite.dev/assets/chunks/framework.Mlkvh5rC.js","method":"GET","source":"link","attribute":"href","tag":"link","depth":2,"status":200,"content_type":"application/javascript; charset=UTF-8","referer":"https://main.vite.dev/"}
+{"url":"https://main.vite.dev/assets/chunks/theme.Bd2_aQt9.js","method":"GET","source":"link","attribute":"href","tag":"link","depth":2,"status":200,"content_type":"application/javascript; charset=UTF-8","referer":"https://main.vite.dev/"}
+{"url":"https://main.vite.dev/assets/chunks/Footer.Bowc1_HC.js","method":"GET","source":"link","attribute":"href","tag":"link","depth":2,"status":200,"content_type":"application/javascript; charset=UTF-8","referer":"https://main.vite.dev/"}
+{"url":"https://main.vite.dev/assets/chunks/assets.LcogJ1e5.js","method":"GET","source":"link","attribute":"href","tag":"link","depth":2,"status":200,"content_type":"application/javascript; charset=UTF-8","referer":"https://main.vite.dev/"}
+{"url":"https://main.vite.dev/assets/index.md.Bh66X_2B.lean.js","method":"GET","source":"link","attribute":"href","tag":"link","depth":2,"status":200,"content_type":"application/javascript; charset=UTF-8","referer":"https://main.vite.dev/"}
+{"url":"https://main.vite.dev/logo-without-border.svg","method":"GET","source":"link","attribute":"href","tag":"link","depth":2,"status":200,"content_type":"image/svg+xml","referer":"https://main.vite.dev/"}
+{"url":"https://main.vite.dev/blog.rss","method":"GET","source":"link","attribute":"href","tag":"link","depth":2,"status":200,"content_type":"application/rss+xml","referer":"https://main.vite.dev/"}
+{"url":"https://main.vite.dev/llms.txt","method":"GET","source":"link","attribute":"href","tag":"link","depth":2,"status":200,"content_type":"text/plain; charset=UTF-8","referer":"https://main.vite.dev/"}
+{"url":"https://main.vite.dev/assets/footer-background.BIgtbvhx.jpg","method":"GET","source":"img","attribute":"src","tag":"img","depth":2,"status":200,"content_type":"image/jpeg","referer":"https://main.vite.dev/"}
+{"url":"https://main.vite.dev/assets/vite-dark.D2ACe7TL.svg","method":"GET","source":"img","attribute":"src","tag":"img","depth":2,"status":200,"content_type":"image/svg+xml","referer":"https://main.vite.dev/"}
+{"url":"https://main.vite.dev/assets/vite-light.t8GCa_VF.svg","method":"GET","source":"img","attribute":"src","tag":"img","depth":2,"status":200,"content_type":"image/svg+xml","referer":"https://main.vite.dev/"}
+{"url":"https://main.vite.dev/guide/","method":"GET","source":"a","attribute":"href","tag":"a","depth":2,"status":200,"content_type":"text/html; charset=UTF-8","referer":"https://main.vite.dev/"}
+{"url":"https://main.vite.dev/config/","method":"GET","source":"a","attribute":"href","tag":"a","depth":2,"status":200,"content_type":"text/html; charset=UTF-8","referer":"https://main.vite.dev/"}
+{"url":"https://main.vite.dev/plugins/","method":"GET","source":"a","attribute":"href","tag":"a","depth":2,"status":200,"content_type":"text/html; charset=UTF-8","referer":"https://main.vite.dev/"}
+{"url":"https://main.vite.dev/team","method":"GET","source":"a","attribute":"href","tag":"a","depth":2,"status":200,"content_type":"text/html; charset=UTF-8","referer":"https://main.vite.dev/"}
+{"url":"https://main.vite.dev/blog","method":"GET","source":"a","attribute":"href","tag":"a","depth":2,"status":200,"content_type":"text/html; charset=UTF-8","referer":"https://main.vite.dev/"}
+{"url":"https://main.vite.dev/releases","method":"GET","source":"a","attribute":"href","tag":"a","depth":2,"status":200,"content_type":"text/html; charset=UTF-8","referer":"https://main.vite.dev/"}
+{"url":"https://main.vite.dev/acknowledgements","method":"GET","source":"a","attribute":"href","tag":"a","depth":2,"status":200,"content_type":"text/html; charset=UTF-8","referer":"https://main.vite.dev/"}
+{"url":"https://main.vite.dev/trusted-by/openai.svg","method":"GET","source":"img","attribute":"src","tag":"img","depth":2,"status":200,"content_type":"image/svg+xml","referer":"https://main.vite.dev/"}
+{"url":"https://main.vite.dev/trusted-by/shopify.svg","method":"GET","source":"img","attribute":"src","tag":"img","depth":2,"status":200,"content_type":"image/svg+xml","referer":"https://main.vite.dev/"}
+{"url":"https://main.vite.dev/trusted-by/stripe.svg","method":"GET","source":"img","attribute":"src","tag":"img","depth":2,"status":200,"content_type":"image/svg+xml","referer":"https://main.vite.dev/"}
+{"url":"https://main.vite.dev/trusted-by/linear.svg","method":"GET","source":"img","attribute":"src","tag":"img","depth":2,"status":200,"content_type":"image/svg+xml","referer":"https://main.vite.dev/"}
+{"url":"https://main.vite.dev/trusted-by/clickup.svg","method":"GET","source":"img","attribute":"src","tag":"img","depth":2,"status":200,"content_type":"image/svg+xml","referer":"https://main.vite.dev/"}
+{"url":"https://main.vite.dev/trusted-by/wiz.svg","method":"GET","source":"img","attribute":"src","tag":"img","depth":2,"status":200,"content_type":"image/svg+xml","referer":"https://main.vite.dev/"}
+{"url":"https://main.vite.dev/assets/vite-featurepanel-1-background.BHnDg8j4.jpg","method":"GET","source":"img","attribute":"src","tag":"img","depth":2,"status":200,"content_type":"image/jpeg","referer":"https://main.vite.dev/"}
+{"url":"https://main.vite.dev/assets/vite-featurepanel-1-terminal.CQVUoUSU.svg","method":"GET","source":"img","attribute":"src","tag":"img","depth":2,"status":200,"content_type":"image/svg+xml","referer":"https://main.vite.dev/"}
+{"url":"https://main.vite.dev/assets/vite-featurepanel-2-terminal.ChpAU6sR.png","method":"GET","source":"img","attribute":"src","tag":"img","depth":2,"status":200,"content_type":"image/png","referer":"https://main.vite.dev/"}
+{"url":"https://main.vite.dev/assets/vite-featurepanel-4-background.Bnx0RZk-.jpg","method":"GET","source":"img","attribute":"src","tag":"img","depth":2,"status":200,"content_type":"image/jpeg","referer":"https://main.vite.dev/"}
+{"url":"https://main.vite.dev/assets/vite-featurepanel-4-terminal.BRnxuy_J.svg","method":"GET","source":"img","attribute":"src","tag":"img","depth":2,"status":200,"content_type":"image/svg+xml","referer":"https://main.vite.dev/"}
+{"url":"https://main.vite.dev/assets/vite-typed-api.B7gyuuaS.svg","method":"GET","source":"img","attribute":"src","tag":"img","depth":2,"status":200,"content_type":"image/svg+xml","referer":"https://main.vite.dev/"}
+{"url":"https://main.vite.dev/assets/vite-ssr-support.DvdwoLgL.png","method":"GET","source":"img","attribute":"src","tag":"img","depth":2,"status":200,"content_type":"image/png","referer":"https://main.vite.dev/"}
+{"url":"https://main.vite.dev/assets/vite-ci.rfkpyz0p.svg","method":"GET","source":"img","attribute":"src","tag":"img","depth":2,"status":200,"content_type":"image/svg+xml","referer":"https://main.vite.dev/"}
+{"url":"https://main.vite.dev/assets/vite-frameworks-mobile.BooA3_E6.png","method":"GET","source":"img","attribute":"src","tag":"img","depth":2,"status":200,"content_type":"image/png","referer":"https://main.vite.dev/"}
+{"url":"https://main.vite.dev/assets/vite-frameworks.D3X8o4O8.png","method":"GET","source":"img","attribute":"src","tag":"img","depth":2,"status":200,"content_type":"image/png","referer":"https://main.vite.dev/"}
+{"url":"https://main.vite.dev/assets/vite-by-voidzero.D7bblMgo.png","method":"GET","source":"img","attribute":"src","tag":"img","depth":2,"status":200,"content_type":"image/png","referer":"https://main.vite.dev/"}
+{"url":"https://v6.vite.dev/vp-icons.css","method":"GET","source":"link","attribute":"href","tag":"link","depth":2,"status":200,"content_type":"text/css; charset=UTF-8","referer":"https://v6.vite.dev/"}
+{"url":"https://v6.vite.dev/assets/inter-roman-latin.Di8DUHzh.woff2","method":"GET","source":"link","attribute":"href","tag":"link","depth":2,"status":200,"content_type":"font/woff2","referer":"https://v6.vite.dev/"}
+{"url":"https://v6.vite.dev/assets/app.Cpc_RJlv.js","method":"GET","source":"script","attribute":"src","tag":"script","depth":2,"status":200,"content_type":"application/javascript; charset=UTF-8","referer":"https://v6.vite.dev/"}
+{"url":"https://v6.vite.dev/assets/style.C4krVDxd.css","method":"GET","source":"link","attribute":"href","tag":"link","depth":2,"status":200,"content_type":"text/css; charset=UTF-8","referer":"https://v6.vite.dev/"}
+{"url":"https://v6.vite.dev/assets/chunks/theme.DdX05Obh.js","method":"GET","source":"link","attribute":"href","tag":"link","depth":2,"status":200,"content_type":"application/javascript; charset=UTF-8","referer":"https://v6.vite.dev/"}
+{"url":"https://v6.vite.dev/assets/chunks/framework.oYy1daCJ.js","method":"GET","source":"link","attribute":"href","tag":"link","depth":2,"status":200,"content_type":"application/javascript; charset=UTF-8","referer":"https://v6.vite.dev/"}
+{"url":"https://v6.vite.dev/assets/chunks/logo.Ft4BtHHg.js","method":"GET","source":"link","attribute":"href","tag":"link","depth":2,"status":200,"content_type":"application/javascript; charset=UTF-8","referer":"https://v6.vite.dev/"}
+{"url":"https://v6.vite.dev/assets/index.md.eF-VF_eR.lean.js","method":"GET","source":"link","attribute":"href","tag":"link","depth":2,"status":200,"content_type":"application/javascript; charset=UTF-8","referer":"https://v6.vite.dev/"}
+{"url":"https://v6.vite.dev/logo.svg","method":"GET","source":"link","attribute":"href","tag":"link","depth":2,"status":200,"content_type":"image/svg+xml","referer":"https://v6.vite.dev/"}
+{"url":"https://v6.vite.dev/blog.rss","method":"GET","source":"link","attribute":"href","tag":"link","depth":2,"status":200,"content_type":"application/rss+xml","referer":"https://v6.vite.dev/"}
+{"url":"https://v6.vite.dev/guide/","method":"GET","source":"a","attribute":"href","tag":"a","depth":2,"status":200,"content_type":"text/html; charset=UTF-8","referer":"https://v6.vite.dev/"}
+{"url":"https://v6.vite.dev/config/","method":"GET","source":"a","attribute":"href","tag":"a","depth":2,"status":200,"content_type":"text/html; charset=UTF-8","referer":"https://v6.vite.dev/"}
+{"url":"https://v6.vite.dev/plugins/","method":"GET","source":"a","attribute":"href","tag":"a","depth":2,"status":200,"content_type":"text/html; charset=UTF-8","referer":"https://v6.vite.dev/"}
+{"url":"https://v6.vite.dev/team","method":"GET","source":"a","attribute":"href","tag":"a","depth":2,"status":200,"content_type":"text/html; charset=UTF-8","referer":"https://v6.vite.dev/"}
+{"url":"https://v6.vite.dev/blog","method":"GET","source":"a","attribute":"href","tag":"a","depth":2,"status":200,"content_type":"text/html; charset=UTF-8","referer":"https://v6.vite.dev/"}
+{"url":"https://v6.vite.dev/releases","method":"GET","source":"a","attribute":"href","tag":"a","depth":2,"status":200,"content_type":"text/html; charset=UTF-8","referer":"https://v6.vite.dev/"}
+{"url":"https://v6.vite.dev/viteconf.svg","method":"GET","source":"img","attribute":"src","tag":"img","depth":2,"status":200,"content_type":"image/svg+xml","referer":"https://v6.vite.dev/"}
+{"url":"https://v6.vite.dev/github.svg","method":"GET","source":"img","attribute":"src","tag":"img","depth":2,"status":200,"content_type":"image/svg+xml","referer":"https://v6.vite.dev/"}
+{"url":"https://v6.vite.dev/assets/postcss.D5dZ0wDn.svg","method":"GET","source":"img","attribute":"src","tag":"img","depth":2,"status":200,"content_type":"image/svg+xml","referer":"https://v6.vite.dev/"}
+{"url":"https://v6.vite.dev/assets/react.Dn3lPOaa.svg","method":"GET","source":"img","attribute":"src","tag":"img","depth":2,"status":200,"content_type":"image/svg+xml","referer":"https://v6.vite.dev/"}
+{"url":"https://v6.vite.dev/assets/redwood.4XvZwAo1.svg","method":"GET","source":"img","attribute":"src","tag":"img","depth":2,"status":200,"content_type":"image/svg+xml","referer":"https://v6.vite.dev/"}
+{"url":"https://v6.vite.dev/assets/analog.DEj6Mvgw.svg","method":"GET","source":"img","attribute":"src","tag":"img","depth":2,"status":200,"content_type":"image/svg+xml","referer":"https://v6.vite.dev/"}
+{"url":"https://v6.vite.dev/assets/playwright.DAono8gv.svg","method":"GET","source":"img","attribute":"src","tag":"img","depth":2,"status":200,"content_type":"image/svg+xml","referer":"https://v6.vite.dev/"}
+{"url":"https://v6.vite.dev/assets/marko.lDnbFcb_.svg","method":"GET","source":"img","attribute":"src","tag":"img","depth":2,"status":200,"content_type":"image/svg+xml","referer":"https://v6.vite.dev/"}
+{"url":"https://v6.vite.dev/heart.svg","method":"GET","source":"img","attribute":"src","tag":"img","depth":2,"status":200,"content_type":"image/svg+xml","referer":"https://v6.vite.dev/"}
+{"url":"https://v6.vite.dev/voidzero.svg","method":"GET","source":"img","attribute":"src","tag":"img","depth":2,"status":200,"content_type":"image/svg+xml","referer":"https://v6.vite.dev/"}
+{"url":"https://v5.vite.dev/vp-icons.css","method":"GET","source":"link","attribute":"href","tag":"link","depth":2,"status":200,"content_type":"text/css; charset=UTF-8","referer":"https://v5.vite.dev/"}
+{"url":"https://v5.vite.dev/assets/app.ClbgDBOC.js","method":"GET","source":"script","attribute":"src","tag":"script","depth":2,"status":200,"content_type":"application/javascript; charset=UTF-8","referer":"https://v5.vite.dev/"}
+{"url":"https://v5.vite.dev/assets/style.CBfc0FL0.css","method":"GET","source":"link","attribute":"href","tag":"link","depth":2,"status":200,"content_type":"text/css; charset=UTF-8","referer":"https://v5.vite.dev/"}
+{"url":"https://v5.vite.dev/assets/inter-roman-latin.Di8DUHzh.woff2","method":"GET","source":"link","attribute":"href","tag":"link","depth":2,"status":200,"content_type":"font/woff2","referer":"https://v5.vite.dev/"}
+{"url":"https://v5.vite.dev/assets/chunks/theme.BiGBhFon.js","method":"GET","source":"link","attribute":"href","tag":"link","depth":2,"status":200,"content_type":"application/javascript; charset=UTF-8","referer":"https://v5.vite.dev/"}
+{"url":"https://v5.vite.dev/assets/chunks/framework.CrrtirOP.js","method":"GET","source":"link","attribute":"href","tag":"link","depth":2,"status":200,"content_type":"application/javascript; charset=UTF-8","referer":"https://v5.vite.dev/"}
+{"url":"https://v5.vite.dev/assets/chunks/logo.Ft4BtHHg.js","method":"GET","source":"link","attribute":"href","tag":"link","depth":2,"status":200,"content_type":"application/javascript; charset=UTF-8","referer":"https://v5.vite.dev/"}
+{"url":"https://v5.vite.dev/logo.svg","method":"GET","source":"link","attribute":"href","tag":"link","depth":2,"status":200,"content_type":"image/svg+xml","referer":"https://v5.vite.dev/"}
+{"url":"https://v5.vite.dev/assets/index.md.GsTpDcgQ.lean.js","method":"GET","source":"link","attribute":"href","tag":"link","depth":2,"status":200,"content_type":"application/javascript; charset=UTF-8","referer":"https://v5.vite.dev/"}
+{"url":"https://v5.vite.dev/blog.rss","method":"GET","source":"link","attribute":"href","tag":"link","depth":2,"status":200,"content_type":"application/rss+xml","referer":"https://v5.vite.dev/"}
+{"url":"https://v5.vite.dev/guide/","method":"GET","source":"a","attribute":"href","tag":"a","depth":2,"status":200,"content_type":"text/html; charset=UTF-8","referer":"https://v5.vite.dev/"}
+{"url":"https://v5.vite.dev/config/","method":"GET","source":"a","attribute":"href","tag":"a","depth":2,"status":200,"content_type":"text/html; charset=UTF-8","referer":"https://v5.vite.dev/"}

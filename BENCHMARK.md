@@ -1,8 +1,10 @@
 # URL 采集工具横向对比
 
-> 本文是一次性的分析结论。**可复现的基线与工具二进制在 `tools/` 目录**
-> （`tools/baseline/testasp-2026-11-06/`），回归对比请用 `tools/baseline.py diff`，
-> 不要以本文的数字作为判据——目标站点内容会漂移。
+> 本文是一次性的分析结论。**可复现的基线文本与对比脚本已入库 `tools/`**
+> （`tools/baseline/testasp-2026-11-06/`、`tools/baseline.py`），回归对比请用
+> `tools/baseline.py diff`，不要以本文的数字作为判据——目标站点内容会漂移。
+> 5 个对比工具的二进制约 91 MB，只做本地离线存档、不入库，校验和见
+> `tools/README.md`。
 
 测试日期：2026-11-04
 目标：`http://testasp.vulnweb.com`（Acunetix 公开测试靶站）

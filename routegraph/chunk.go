@@ -504,10 +504,11 @@ func (tl *tokenList) viteChunks() []Chunk {
 			if !looksLikeChunkPath(v) {
 				continue
 			}
-			// 数组元素相对 base（站点根），补前导斜杠后再交给 frontier。
-			if !strings.HasPrefix(v, "/") {
-				v = "/" + v
-			}
+			// 元素有两种锚定方式，见 normalizeChunkPath：
+			// Nuxt 的入口在 /_nuxt/ 下，元素写成 "./x.js"，必须保留相对形态
+			// 让 frontier 以当前 JS 的 URL 为 base 解析；Vite 的 "assets/x.js"
+			// 则按站点根锚定。以前一律补 "/"，实测 211 个 chunk 全部落空。
+			v = normalizeChunkPath(v)
 			if _, dup := seen[v]; dup {
 				continue
 			}
@@ -530,8 +531,13 @@ func (tl *tokenList) dynamicImports() []Chunk {
 			continue
 		}
 		j := i + 2
-		if j < len(tl.toks) && tl.kind(j) == TokString {
+		if j < len(tl.toks) && (tl.kind(j) == TokString || tl.kind(j) == TokTemplate) {
 			v := tl.value(j)
+			// 模板里带 ${} 说明含运行时插值，静态取不出来；
+			// 纯静态模板（Nuxt 常见 import(`./x.js`)）与普通字符串等价。
+			if tl.kind(j) == TokTemplate && strings.Contains(v, "${") {
+				continue
+			}
 			if looksLikeChunkPath(v) {
 				if _, dup := seen[v]; !dup {
 					seen[v] = struct{}{}
@@ -561,6 +567,21 @@ func (tl *tokenList) dynamicImports() []Chunk {
 		}
 	}
 	return out
+}
+
+// normalizeChunkPath 把依赖表元素转成 frontier 可直接解析的形态。
+//
+// 关键区别是「相对谁」：
+//   - "./x.js" / "../x.js" 相对当前模块。保留原样，frontier 会以当前 JS
+//     的 URL 为 base 解析。Nuxt 入口是 /_nuxt/entry.js，结果即 /_nuxt/x.js。
+//     若在这里补成 "/./x.js"，归一化后是 /x.js，整批 chunk 都会 404。
+//   - "assets/x.js" 是 Vite 的站点根相对写法，补前导斜杠。
+//   - 已以 "/" 开头的原样保留。
+func normalizeChunkPath(v string) string {
+	if strings.HasPrefix(v, "./") || strings.HasPrefix(v, "../") || strings.HasPrefix(v, "/") {
+		return v
+	}
+	return "/" + v
 }
 
 func looksLikeChunkPath(p string) bool {

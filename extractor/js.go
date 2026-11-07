@@ -39,9 +39,11 @@ var jsNoiseRe = regexp.MustCompile(`(?i)^(/|//|/\*|\*/)$|[%$]\{|\$\{|%s|%d|\{\{`
 
 // FromJS 从脚本或样式内容中提取 URL 候选。
 //
-// 若注入了 JSExtract（AST 引擎），先取其结果，再叠加正则结果：
-// AST 擅长还原拼接与调用点语义，正则擅长兜住 AST 解析失败或漏掉的字面量，
-// 两者合并后由下游 frontier 统一去重。
+// 若注入了 JSExtract（AST 引擎）且解析成功，直接用它的结果，**不叠加正则**：
+// AST 已经把 `BASE + "/orders"` 合并成 `/v2/orders`，再叠正则会把 `"/v2"`、
+// `"/orders"` 这些片段重新拆出来。2026-11-07 的 A/B 实测中，叠加后
+// 探针 4 条已知噪音全部反弹（goja 档还丢了一条真实 URL），故保持不叠加。
+// 只有 AST 明确解析失败（ESM 等）时才回退正则。
 func FromJS(content string, o Options) []Request {
 	if o.JSExtract != nil {
 		if reqs, ok := o.JSExtract(content); ok {

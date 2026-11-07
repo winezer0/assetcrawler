@@ -2,9 +2,15 @@
 *.exe
 /assetcrawler
 /dist/
+# 对比工具的二进制只做本地离线存档，不入库（见 tools/README.md）
+/tools/bin/
 
 # 本地测试输出
 /out/
+
+# Python
+__pycache__/
+*.pyc
 
 # IDE
 .idea/

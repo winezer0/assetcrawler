@@ -1,0 +1,28 @@
+{
+  "target_host": "testasp.vulnweb.com",
+  "generated_at": "2026-11-06 21:10",
+  "tools": {
+    "hakrawler": {
+      "status": "no_output"
+    },
+    "gospider": {
+      "status": "no_output"
+    },
+    "cariddi": {
+      "status": "no_output"
+    },
+    "URLFinder-m1": {
+      "status": "no_output"
+    },
+    "URLFinder-m2": {
+      "status": "no_output"
+    },
+    "assetcrawler": {
+      "status": "ok",
+      "inside_unique": 67,
+      "outside_unique": 0,
+      "raw_count": 67
+    }
+  },
+  "union_inside": 67
+}

@@ -21,11 +21,18 @@ import (
 // 而我们要的只是"里面有哪些像地址的字符串"。逐片段取字符串字面量即可，
 // 不需要跨片段拼接——单个片段内就已经是完整的路径值。
 
-// nextFlightRe 匹配一段 `self.__next_f.push([1,"..."])`，捕获其中的字符串。
+// nextFlightPatterns 匹配一段 RSC payload，捕获其中的字符串。
+// 实测有两种常见写法，按表驱动逐个取，命中结果合并后统一去重：
+//
+//	self.__next_f.push([1,"..."])
+//	(self.__next_f=self.__next_f||[]).push([1,"..."])
 //
 // 字符串里允许出现转义序列，所以用 `(?:[^"\\]|\\.)*` 而不是 `.*?`：
 // 后者遇到 `\"` 会提前截断，半个 payload 被当成完整片段。
-var nextFlightRe = regexp.MustCompile(`self\.__next_f\.push\(\s*\[\s*1\s*,\s*"((?:[^"\\]|\\.)*)"`)
+var nextFlightPatterns = []*regexp.Regexp{
+	regexp.MustCompile(`self\.__next_f\.push\(\s*\[\s*1\s*,\s*"((?:[^"\\]|\\.)*)"`),
+	regexp.MustCompile(`\(\s*self\.__next_f\s*=\s*self\.__next_f\s*\|\|\s*\[\]\s*\)\s*\.push\(\s*\[\s*1\s*,\s*"((?:[^"\\]|\\.)*)"`),
+}
 
 // flightStringRe 取 payload 里的字符串字面量。
 var flightStringRe = regexp.MustCompile(`"((?:[^"\\]|\\.){2,200})"`)
@@ -44,7 +51,10 @@ func LooksLikeNextFlight(script string) bool {
 //   - 构建产物（.js/.css/.woff 结尾）→ Kind=chunk，与 webpack/Vite 的 chunk 同义
 //   - 其余路径 → 普通 URL（页面或接口），按正常流程抓取
 func FromNextFlight(script string) []Request {
-	matches := nextFlightRe.FindAllStringSubmatch(script, -1)
+	var matches [][]string
+	for _, re := range nextFlightPatterns {
+		matches = append(matches, re.FindAllStringSubmatch(script, -1)...)
+	}
 	if len(matches) == 0 {
 		return nil
 	}

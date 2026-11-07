@@ -46,6 +46,9 @@ type task struct {
 	kind        string
 	params      []string
 	paramValues []extractor.ParamValue
+	// deferPage 表示「同层里可以晚一点抓」的页面类任务。
+	// 静态资源优先，避免大批导航路径把 JS/CSS 的配额抢光（见 orderTasks）。
+	deferPage bool
 }
 
 // New 创建采集器。
@@ -101,7 +104,7 @@ func (c *Crawler) Crawl(ctx context.Context, seeds ...string) ([]Result, error) 
 		if c.opts.MaxDepth > 0 && depth > c.opts.MaxDepth {
 			break
 		}
-		next := c.runLevel(ctx, current)
+		next := orderTasks(c.runLevel(ctx, current))
 
 		// 第 0 层结束后并入引导任务。顺序上把种子页提取出的资源排在前面：
 		// 配额紧张时优先抓 JS/CSS，而不是把额度全给 sitemap 里的页面。
@@ -410,6 +413,7 @@ func (c *Crawler) toTasks(reqs []extractor.Request, base *url.URL, depth int, re
 			kind:        r.Kind,
 			params:      r.Params,
 			paramValues: r.ParamValues,
+			deferPage:   strings.HasPrefix(r.Source, "inline-json:"),
 		})
 	}
 	return next

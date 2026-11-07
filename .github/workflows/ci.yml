@@ -29,7 +29,12 @@ jobs:
       - name: build
         run: go build -ldflags="-s -w" -o /tmp/assetcrawler ./cmd/assetcrawler
 
-      # 探针夹具的退出码口径是「不回归」：CSP 两项按设计不接入采集流程，
-      # 用 19/19 当门槛会让 CI 长期红着。
+      # 探针夹具的退出码口径是「不回归」：将来若出现「按设计不接入」的载体，
+      # 拿满覆盖当门槛会让 CI 长期红着。
       - name: probe fixture
         run: python3 testdata/probe/check.py --bin /tmp/assetcrawler
+
+      - name: probe guard
+        env:
+          PROBE_BIN: /tmp/assetcrawler
+        run: python3 -m unittest discover -s testdata/probe -p 'test_*.py' -v
